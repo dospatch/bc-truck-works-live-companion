@@ -25,13 +25,13 @@ The current web dashboard includes:
 - Browser-saved preferences
 - A visible telemetry connection status
 
-**Important:** the current dashboard is a browser V1. It does not yet read live game telemetry. Speed, fuel, destination distance, job deadline, rest planning, eco score, and automatic driving alerts remain unavailable until a compatible telemetry bridge is implemented and connected. Co-driver responses are rule-based, not a connected cloud AI service.
+**Important:** the current dashboard is a browser V1. The desktop edition now includes a first local SCS telemetry bridge implementation, but it has not yet been tested end-to-end on a real Windows PC. Live readings require a compatible game telemetry plugin. Eco score and automatic driving alert rules remain unavailable. Co-driver responses are rule-based, not a connected cloud AI service.
 
 ## Windows desktop edition
 
 The Electron desktop package is configured to bundle the Next.js dashboard and run it locally, so the desktop dashboard does not depend on the hosted site being online. See [Desktop Edition setup and limitations](docs/DESKTOP-EDITION.md). GitHub Actions has successfully built a Windows setup executable and uploaded it as a temporary workflow artifact. New pushes rebuild it, and version tags are configured to publish release assets automatically after the workflow succeeds.
 
-**Important:** real ATS/ETS2 telemetry is still not connected. The current status endpoint deliberately reports `not_connected`; the desktop wrapper alone cannot read game telemetry. The installer has been built by CI, but it has not yet been tested end-to-end on a real Windows PC. The Releases page remains the official place for public downloads.
+**Important:** the local telemetry bridge is implemented but not yet validated on a real Windows PC. The hosted website does not read local game data; telemetry is a desktop-only feature and requires a compatible SCS plugin. The installer has been built by CI, but it has not yet been tested end-to-end on a real Windows PC. The Releases page remains the official place for public downloads.
 
 ## Safety and project status
 
