@@ -68,6 +68,7 @@ export default function Home() {
       load(); window.speechSynthesis.onvoiceschanged=load;
     }
     fetch("/api/health",{cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.ok)setNotice("WEBSITE ONLINE · browser features are ready. Game telemetry is not connected yet.");}).catch(()=>{});
+    fetch("/api/telemetry/status",{cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.telemetry?.connected){setNotice("TELEMETRY CONNECTED · "+d.telemetry.source+" data feed detected.");}else{setNotice("WEBSITE ONLINE · TELEMETRY NOT CONNECTED · "+(d.telemetry?.message||"Live game data is unavailable."));}}).catch(()=>setNotice("WEBSITE ONLINE · telemetry status could not be checked."));
     return ()=>clearInterval(timer);
   },[]);
   useEffect(()=>{try{localStorage.setItem("bc-live-companion-v1",JSON.stringify({callouts,voiceOn,voiceCommands,personality,voice,speed,pitch,volume,profile,customProfiles}));}catch{}},[callouts,voiceOn,voiceCommands,personality,voice,speed,pitch,volume,profile,customProfiles]);
