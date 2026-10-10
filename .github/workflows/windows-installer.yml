@@ -17,7 +17,9 @@ concurrency:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    # windows-latest moved to a runner with VS 18, which node-gyp currently
+    # fails to identify. Pin VS 2022 until native telemetry dependency supports it.
+    runs-on: windows-2022
     timeout-minutes: 30
     steps:
       - name: Check out source
