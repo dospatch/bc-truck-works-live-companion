@@ -29,9 +29,9 @@ The current web dashboard includes:
 
 ## Windows desktop edition
 
-An initial Electron desktop wrapper and Windows installer workflow are now in the repository. See [Desktop Edition setup and limitations](docs/DESKTOP-EDITION.md). The GitHub Actions workflow can build a Windows setup executable and upload it as a temporary workflow artifact.
+The Electron desktop package is configured to bundle the Next.js dashboard and run it locally, so the desktop dashboard does not depend on the hosted site being online. See [Desktop Edition setup and limitations](docs/DESKTOP-EDITION.md). GitHub Actions can build a Windows setup executable and upload it as a temporary workflow artifact.
 
-**This is not yet the final telemetry-enabled release.** The wrapper loads the hosted dashboard and depends on its public URL being correct. It does not include a local ATS/ETS2 telemetry bridge, and the live installer has not yet been built and verified. The Releases page remains the official place for public downloads.
+**Important:** real ATS/ETS2 telemetry is still not connected. The current status endpoint deliberately reports `not_connected`; the desktop wrapper alone cannot read game telemetry. The installer has not yet been built and tested on Windows. The Releases page remains the official place for public downloads.
 
 ## Safety and project status
 
