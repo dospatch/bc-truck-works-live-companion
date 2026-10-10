@@ -3,15 +3,22 @@ name: Build Windows Installer
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
 permissions:
   contents: read
 
+concurrency:
+  group: windows-installer-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -20,9 +27,11 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
-      - name: Build Windows installer
-        run: npm run desktop:dist
+        run: npm install --no-audit --no-fund
+      - name: Build Next.js standalone dashboard
+        run: npm run build
+      - name: Package Windows installer
+        run: npx electron-builder --win nsis
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload installer artifact
