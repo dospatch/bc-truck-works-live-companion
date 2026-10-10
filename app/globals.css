@@ -11,3 +11,9 @@
 .status-bridge i { background: #fbbf24 !important; }
 .status-web { border-color: rgba(148,163,184,.35) !important; }
 .status-web i { background: #94a3b8 !important; }
+
+/* Brand logo assets */
+.brand-mark{overflow:hidden;padding:5px;background:#08111f}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.mini-mark{overflow:hidden;padding:4px}
+.mini-mark img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
