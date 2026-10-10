@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "start:production": "next start -H 0.0.0.0",
+    "start": "node index.js",
+    "start:production": "node index.js",
     "lint": "eslint .",
     "desktop:start": "electron .",
     "desktop:dist": "npm install --include=dev && npm run build && electron-builder --win nsis"
