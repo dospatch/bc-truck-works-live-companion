@@ -135,7 +135,7 @@ export default function Home() {
       <div className="sidebar-bottom"><b>DRIVE · BUILD · SUCCEED</b><span>Built for the road ahead.</span><span>BC Truck Works © 2026</span></div>
     </aside>
     <section className="workspace">
-      <header className="topbar"><div className="page-title"><div className="mini-mark">BC</div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div className="status-pill"><i/> <b>READY</b> <span>{clock}</span></div></header>
+      <header className="topbar"><div className="page-title"><div className="mini-mark">BC</div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div className={"status-pill "+(liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"status-live":liveTelemetry?"status-bridge":"status-web")}><i/> <b>{liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"LIVE":liveTelemetry?"BRIDGE":"WEB ONLINE"}</b> <span>{clock}</span></div></header>
       <div className="metrics">{metrics.map(m=><article className="metric" key={m[0]}><div className="metric-icon">{m[3]}</div><div className="metric-label">{m[0]}</div><strong>{m[1]}</strong><small>{m[2]}</small></article>)}</div>
       <div className="notice"><b>STATUS</b><span>{notice}</span></div>
       <div className="content-grid">
