@@ -114,6 +114,17 @@ export default function Home() {
     rec.onresult=e=>{const t=e.results?.[0]?.[0]?.transcript;if(t)ask(t);};rec.start();
   }
   function addProfile(e){e.preventDefault();const name=profileInput.trim();if(!name)return;setCustomProfiles(old=>[...new Set([...old,name])]);setProfile(name);setProfileInput("");setNotice("Custom app profile saved in this browser.");}
+  useEffect(()=>{
+    if(!voiceCommands)return;
+    const onKeyDown=e=>{
+      if(e.repeat || e.key.toLowerCase()!=="v" || e.ctrlKey || e.altKey || e.metaKey)return;
+      const target=e.target;
+      if(target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName)))return;
+      if(!listening)listen();
+    };
+    window.addEventListener("keydown",onKeyDown);
+    return ()=>window.removeEventListener("keydown",onKeyDown);
+  },[voiceCommands,listening]);
   const live = liveTelemetry?.connected && liveTelemetry?.valuesAreLive ? liveTelemetry : null;
   const truck = live?.truck || {};
   const job = live?.job || {};
@@ -146,7 +157,7 @@ export default function Home() {
             <div className="messages" aria-live="polite">{messages.map((m,i)=><article key={m.time+"-"+i} className={"message "+(m.from==="You"?"from-user":"")}><div className="message-head"><b>{m.from}</b><small>{m.time}</small></div><p>{m.text}</p></article>)}</div>
             <div className="chat-footer"><span><i/> CO-DRIVER READY</span><span>Responses may use demo data</span></div>
           </section>
-          <section className="panel voice-commands"><header className="panel-heading"><h2><i/> VOICE COMMANDS</h2><span className="soft-tag">BROWSER AUDIO</span></header><div className="setting-row"><div><b>Listen for voice commands</b><p>Use your microphone to ask questions by voice. Browser support varies.</p></div>{toggle(voiceCommands,setVoiceCommands,"Enable voice commands")}</div>{voiceCommands&&<button className="primary-button full-button" onClick={listen}>{listening?"Listening — speak now":"Start voice command"}</button>}<div className="setting-fields"><label>PUSH-TO-TALK KEY<input value="V" readOnly aria-label="Push to talk key"/></label><label>ACTIVE APP PROFILE<select value={profile} onChange={e=>setProfile(e.target.value)}><option>American Truck Simulator</option><option>Euro Truck Simulator 2</option>{customProfiles.map(p=><option key={p}>{p}</option>)}</select></label></div><p className="helper-text">V1 works as a browser companion for any app. Game-aware readings require a compatible integration.</p></section>
+          <section className="panel voice-commands"><header className="panel-heading"><h2><i/> VOICE COMMANDS</h2><span className="soft-tag">BROWSER AUDIO</span></header><div className="setting-row"><div><b>Listen for voice commands</b><p>Enable the V keyboard shortcut to start a one-phrase voice command. Avoid typing in a field when using the shortcut.</p></div>{toggle(voiceCommands,setVoiceCommands,"Enable voice commands")}</div>{voiceCommands&&<button className="primary-button full-button" onClick={listen}>{listening?"Listening — speak now":"Start voice command"}</button>}<div className="setting-fields"><label>VOICE SHORTCUT KEY<input value="V" readOnly aria-label="Voice shortcut key"/></label><label>ACTIVE APP PROFILE<select value={profile} onChange={e=>setProfile(e.target.value)}><option>American Truck Simulator</option><option>Euro Truck Simulator 2</option>{customProfiles.map(p=><option key={p}>{p}</option>)}</select></label></div><p className="helper-text">V1 works as a browser companion for any app. Game-aware readings require a compatible integration.</p></section>
         </div>
         <div className="right-column">
           <section className="panel"><header className="panel-heading"><h2><i/> VOICE & PERSONALITY</h2><button className="outline-button" onClick={()=>say("Welcome back to BC Truck Works. Keep on truckin'.")}>▶ Test voice</button></header><div className="setting-row"><div><b>Co-driver speaks</b><p>Uses this device's speech output.</p></div>{toggle(voiceOn,setVoiceOn,"Enable spoken responses")}</div><label className="field-label">PERSONALITY<select value={personality} onChange={e=>setPersonality(e.target.value)}><option>Friendly & Professional</option><option>Calm Long-Haul Partner</option><option>Energetic Convoy Buddy</option><option>Short & Straight to the Point</option><option>Funny Trucking Buddy</option></select></label><label className="field-label">VOICE<select value={voice} onChange={e=>setVoice(e.target.value)}>{["Automatic English voice",...new Set(voices)].map(v=><option key={v}>{v}</option>)}</select></label><div className="sliders">{[["SPEED",speed,setSpeed,.6,1.5,.1],["PITCH",pitch,setPitch,.6,1.5,.1],["VOLUME",volume,setVolume,0,1,.05]].map(([label,val,setter,min,max,step])=><label key={label}>{label}<input type="range" min={min} max={max} step={step} value={val} onChange={e=>setter(Number(e.target.value))}/></label>)}</div></section>
