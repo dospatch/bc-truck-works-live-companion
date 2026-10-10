@@ -20,6 +20,10 @@
     "@vercel/analytics": "^1.5.0",
     "trucksim-telemetry": "^1.0.0"
   },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0"
+  },
   "build": {
     "appId": "com.bctruckworks.livecompanion",
     "productName": "BC Truck Works Live Companion",
