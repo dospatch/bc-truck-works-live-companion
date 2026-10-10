@@ -27,9 +27,11 @@ The current web dashboard includes:
 
 **Important:** the current dashboard is a browser V1. It does not yet read live game telemetry. Speed, fuel, destination distance, job deadline, rest planning, eco score, and automatic driving alerts remain unavailable until a compatible telemetry bridge is implemented and connected. Co-driver responses are rule-based, not a connected cloud AI service.
 
-## Planned Windows edition
+## Windows desktop edition
 
-The goal is a self-contained Windows installer that provides a Start menu shortcut and uninstall support, runs the companion on the player's PC, and clearly reports whether ATS/ETS2 telemetry is connected. The final installer must bundle or install the required runtime and compatible telemetry component, with no requirement for players to install development tools manually.
+An initial Electron desktop wrapper and Windows installer workflow are now in the repository. See [Desktop Edition setup and limitations](docs/DESKTOP-EDITION.md). The GitHub Actions workflow can build a Windows setup executable and upload it as a temporary workflow artifact.
+
+**This is not yet the final telemetry-enabled release.** The wrapper loads the hosted dashboard and depends on its public URL being correct. It does not include a local ATS/ETS2 telemetry bridge, and the live installer has not yet been built and verified. The Releases page remains the official place for public downloads.
 
 ## Safety and project status
 
