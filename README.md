@@ -6,7 +6,7 @@
 
 **Windows installer: not published yet.** A real, tested Windows installer will be attached to the repository's GitHub Releases when the desktop package and local telemetry bridge are ready.
 
-- **Releases / downloads:** https://github.com/dospatch/bc-truck-works-live-companion/releases
+- **Releases/downloads:** https://github.com/dospatch/bc-truck-works-live-companion/releases
 - **Source code:** https://github.com/dospatch/bc-truck-works-live-companion
 - **Telemetry integration notes:** [docs/TELEMETRY-INTEGRATION.md](docs/TELEMETRY-INTEGRATION.md)
 - **Windows packaging checklist:** [docs/WINDOWS-RELEASES.md](docs/WINDOWS-RELEASES.md)
