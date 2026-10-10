@@ -11,16 +11,22 @@ const navGroups = [
   ["WORK", [["▰","Dispatch & BOL"],["▤","Trip History"],["▥","Earnings & Stats"],["▧","Journal"],["▦","Company"],["★","Career"]]],
   ["CONVOY", [["◉","Convoy Hub"],["♧","Convoy"],["🏆","Leaderboard"],["⌖","Convoy Radar"]]]
 ];
-function replyFor(input) {
+function replyFor(input, personality) {
   const q = input.toLowerCase();
-  if (q.includes("joke")) return "Why did the truck driver bring a ladder? To reach the next level of the highway. Keep on truckin'!";
-  if (q.includes("fuel")) return "Live fuel level and range will appear when a supported telemetry source is connected.";
-  if (q.includes("rest") || q.includes("sleep")) return "Your rest plan needs the game's current route, driving time, and fatigue data. Connect telemetry for a live estimate.";
-  if (q.includes("far") || q.includes("destination") || q.includes("mile")) return "Destination distance needs active navigation data from a connected game telemetry feed.";
-  if (q.includes("gear") || q.includes("shift")) return "Live shift coaching needs your truck's speed, RPM, gear, and engine data. Until connected, follow the RPM band and road load.";
-  if (q.includes("damage")) return "A live truck and cargo damage report needs a connected telemetry source.";
-  if (q.includes("make it") || q.includes("deadline")) return "Delivery estimates need the remaining distance, job deadline, and rest limits from your active job.";
-  return "I'm your BC Truck Works co-driver. Ask me about fuel, distance, rest, gear, delivery timing, damage, or ask for a joke. Live driving answers require a supported telemetry connection.";
+  let answer;
+  if (q.includes("joke")) answer = "Why did the truck driver bring a ladder? To reach the next level of the highway. Keep on truckin'!";
+  else if (q.includes("fuel")) answer = "Live fuel level and range will appear when a supported telemetry source is connected.";
+  else if (q.includes("rest") || q.includes("sleep")) answer = "Your rest plan needs the game's current route, driving time, and fatigue data. Connect telemetry for a live estimate.";
+  else if (q.includes("far") || q.includes("destination") || q.includes("mile")) answer = "Destination distance needs active navigation data from a connected game telemetry feed.";
+  else if (q.includes("gear") || q.includes("shift")) answer = "Live shift coaching needs your truck's speed, RPM, gear, and engine data. Until connected, follow the RPM band and road load.";
+  else if (q.includes("damage")) answer = "A live truck and cargo damage report needs a connected telemetry source.";
+  else if (q.includes("make it") || q.includes("deadline")) answer = "Delivery estimates need the remaining distance, job deadline, and rest limits from your active job.";
+  else answer = "I'm your BC Truck Works co-driver. Ask me about fuel, distance, rest, gear, delivery timing, damage, or ask for a joke. Live driving answers require a supported telemetry connection.";
+  if (personality === "Calm Long-Haul Partner") return "No rush — let's take it one step at a time. " + answer;
+  if (personality === "Energetic Convoy Buddy") return "Alright, driver! " + answer + " Let's keep those wheels rolling!";
+  if (personality === "Short & Straight to the Point") return answer;
+  if (personality === "Funny Trucking Buddy" && !q.includes("joke")) return answer + " Keep the shiny side up and the rubber side down!";
+  return answer;
 }
 export default function Home() {
   const [question,setQuestion] = useState("");
@@ -75,7 +81,7 @@ export default function Home() {
   function ask(text=question) {
     const q=text.trim();if(!q)return;
     const time=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-    const answer=replyFor(q);
+    const answer=replyFor(q,personality);
     setMessages(old=>[...old,{from:"You",text:q,time},{from:"BC Co-Driver",text:answer,time}]);setQuestion("");say(answer);
   }
   function listen() {
