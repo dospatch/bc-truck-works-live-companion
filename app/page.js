@@ -47,6 +47,7 @@ export default function Home() {
   const [listening,setListening] = useState(false);
   const [clock,setClock] = useState("--:--");
   const [notice,setNotice] = useState("DEMO MODE · readings are placeholders until a compatible telemetry source is connected.");
+  const [liveTelemetry,setLiveTelemetry] = useState(null);
   useEffect(()=>{
     const tick=()=>setClock(new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}));
     tick(); const timer=setInterval(tick,15000);
@@ -69,7 +70,26 @@ export default function Home() {
     }
     fetch("/api/health",{cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.ok)setNotice("WEBSITE ONLINE · browser features are ready. Game telemetry is not connected yet.");}).catch(()=>{});
     fetch("/api/telemetry/status",{cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.telemetry?.connected){setNotice("TELEMETRY CONNECTED · "+d.telemetry.source+" data feed detected.");}else{setNotice("WEBSITE ONLINE · TELEMETRY NOT CONNECTED · "+(d.telemetry?.message||"Live game data is unavailable."));}}).catch(()=>setNotice("WEBSITE ONLINE · telemetry status could not be checked."));
-    return ()=>clearInterval(timer);
+    let stopped = false;
+    const pollBridge = async () => {
+      try {
+        const r = await fetch("http://127.0.0.1:32146/status", { cache: "no-store", signal: AbortSignal.timeout(1200) });
+        if (!r.ok) throw new Error("Bridge unavailable");
+        const data = await r.json();
+        if (stopped) return;
+        setLiveTelemetry(data);
+        if (data.connected && data.valuesAreLive) {
+          setNotice("LIVE TELEMETRY · " + (data.source === "ats" ? "American Truck Simulator" : data.source === "ets2" ? "Euro Truck Simulator 2" : "Game") + (data.status === "paused" ? " · GAME PAUSED" : " · CONNECTED") + " · updated " + new Date(data.updatedAt).toLocaleTimeString());
+        } else {
+          setNotice("DESKTOP BRIDGE AVAILABLE · " + (data.message || "Start ATS/ETS2 with a compatible SCS telemetry plugin."));
+        }
+      } catch {
+        if (!stopped) setLiveTelemetry(null);
+      }
+    };
+    pollBridge();
+    const bridgeTimer = setInterval(pollBridge, 1000);
+    return ()=>{ stopped = true; clearInterval(timer); clearInterval(bridgeTimer); };
   },[]);
   useEffect(()=>{try{localStorage.setItem("bc-live-companion-v1",JSON.stringify({callouts,voiceOn,voiceCommands,personality,voice,speed,pitch,volume,profile,customProfiles}));}catch{}},[callouts,voiceOn,voiceCommands,personality,voice,speed,pitch,volume,profile,customProfiles]);
   function say(text) {
@@ -94,7 +114,19 @@ export default function Home() {
     rec.onresult=e=>{const t=e.results?.[0]?.[0]?.transcript;if(t)ask(t);};rec.start();
   }
   function addProfile(e){e.preventDefault();const name=profileInput.trim();if(!name)return;setCustomProfiles(old=>[...new Set([...old,name])]);setProfile(name);setProfileInput("");setNotice("Custom app profile saved in this browser.");}
-  const metrics=[["SPEED","—","mph","◉"],["FUEL","—","live data needed","⛽"],["TO DESTINATION","—","miles remaining","⌖"],["NEXT REST","—","game data needed","◷"],["DEADLINE","—","no active job","▤"],["ECO SCORE","—","trip data needed","✦"],["ALERTS","0","no live telemetry","♧"]];
+  const live = liveTelemetry?.connected && liveTelemetry?.valuesAreLive ? liveTelemetry : null;
+  const truck = live?.truck || {};
+  const job = live?.job || {};
+  const show = (value, suffix = "") => value === null || value === undefined || value === "" ? "—" : String(value) + suffix;
+  const metrics=[
+    ["SPEED",show(truck.speedMph),"mph","◉"],
+    ["FUEL",show(truck.fuelPercent,"%"),truck.fuelLitres == null ? "live fuel unavailable" : Math.round(truck.fuelLitres)+" litres","⛽"],
+    ["TO DESTINATION",show(job.remainingDistanceMiles),"miles remaining","⌖"],
+    ["NEXT REST",show(job.restMinutes),"game minutes","◷"],
+    ["DEADLINE",job.active && job.deadlineGameMinutes != null ? "Active job" : "—",job.active ? (job.destination ? "To "+job.destination : "job in progress") : "no active job","▤"],
+    ["ECO SCORE","—","trip scoring not implemented","✦"],
+    ["ALERTS",live ? "—" : "—",live ? "alert rules not implemented" : "no live telemetry","♧"]
+  ];
   const toggle=(checked,setter,label)=><input className="toggle" type="checkbox" checked={checked} onChange={e=>setter(e.target.checked)} aria-label={label}/>;
   return <main className="app-shell">
     <aside className="sidebar">
