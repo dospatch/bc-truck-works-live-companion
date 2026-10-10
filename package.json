@@ -34,8 +34,7 @@
       "electron/**/*",
       "package.json",
       ".next/standalone/**/*",
-      ".next/static/**/*",
-      "public/**/*"
+      ".next/static/**/*"
     ],
     "asar": true,
     "win": {
@@ -60,10 +59,6 @@
       {
         "from": ".next/static",
         "to": "app/.next/static"
-      },
-      {
-        "from": "public",
-        "to": "app/public"
       }
     ]
   }
