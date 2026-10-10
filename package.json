@@ -8,9 +8,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "desktop:start": "electron .",
-    "desktop:dist": "electron-builder --win nsis"
+    "desktop:dist": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "next": "^15.5.0",
@@ -20,7 +20,9 @@
   },
   "devDependencies": {
     "electron": "^35.0.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.5.0"
   },
   "build": {
     "appId": "com.bctruckworks.livecompanion",
@@ -30,7 +32,10 @@
     },
     "files": [
       "electron/**/*",
-      "package.json"
+      "package.json",
+      ".next/standalone/**/*",
+      ".next/static/**/*",
+      "public/**/*"
     ],
     "asar": true,
     "win": {
@@ -46,6 +51,20 @@
       "createStartMenuShortcut": true,
       "shortcutName": "BC Truck Works Live Companion",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app"
+      },
+      {
+        "from": ".next/static",
+        "to": "app/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "app/public"
+      }
+    ]
   }
 }
