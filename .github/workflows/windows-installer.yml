@@ -9,7 +9,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: windows-installer-${{ github.ref }}
@@ -34,10 +34,28 @@ jobs:
         run: npx electron-builder --win nsis
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*.exe | Select-Object -First 1
+          if (-not $installer) { throw "No Windows installer was produced." }
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($installer.Name)" | Set-Content -Path "$($installer.FullName).sha256" -Encoding ascii
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: BC-Truck-Works-Companion-Windows-Installer
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.sha256
           if-no-files-found: error
           retention-days: 14
+      - name: Publish GitHub Release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BC Truck Works Live Companion ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release/*.exe
+            release/*.sha256
