@@ -113,11 +113,20 @@ const server = http.createServer((req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  if (req.method !== "GET" || req.url !== "/status") {
+  if (req.method !== "GET" || (req.url !== "/status" && req.url !== "/health")) {
     res.writeHead(404);
     return res.end(JSON.stringify({ ok: false, error: "Not found." }));
   }
   res.writeHead(200);
+  if (req.url === "/health") {
+    return res.end(JSON.stringify({
+      ok: true,
+      service: "bc-truck-works-telemetry-bridge",
+      readerLoaded: Boolean(telemetry),
+      connected: Boolean(snapshot().connected),
+      status: snapshot().status
+    }));
+  }
   res.end(JSON.stringify(snapshot()));
 });
 
@@ -127,3 +136,14 @@ server.on("error", error => {
   initError = String(error?.message || error).slice(0, 300);
   console.error("BC telemetry bridge server error:", initError);
 });
+
+function shutdown(signal) {
+  console.log(`${signal} received; stopping telemetry bridge.`);
+  server.close(() => {
+    try { telemetry?.close?.(); } catch {}
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 5000).unref();
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
