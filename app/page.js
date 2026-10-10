@@ -193,12 +193,12 @@ export default function Home() {
   const toggle=(checked,setter,label)=><input className="toggle" type="checkbox" checked={checked} onChange={e=>setter(e.target.checked)} aria-label={label}/>;
   return <main className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark"><span>BC</span><small>TRUCK WORKS</small></div><strong>BC TRUCK WORKS</strong><b>LIVE COMPANION</b><small className="version">V1.0 · DRIVER EDITION</small></div>
+      <div className="brand"><div className="brand-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="BC Truck Works logo" /></div><strong>BC TRUCK WORKS</strong><b>LIVE COMPANION</b><small className="version">V1.0 · DRIVER EDITION</small></div>
       {navGroups.map(([group,items])=><section className="nav-group" key={group}><div className="nav-label">{group}</div>{items.map(([icon,label])=><button type="button" key={label} className={"nav-item "+(label==="Co-Driver"?"active":"")} onClick={()=>label!=="Co-Driver"&&setNotice(label+" module is planned for a future release. Co-Driver is the active V1 module.")}><span>{icon}</span>{label}</button>)}</section>)}
       <div className="sidebar-bottom"><b>DRIVE · BUILD · SUCCEED</b><span>Built for the road ahead.</span><span>BC Truck Works © 2026</span></div>
     </aside>
     <section className="workspace">
-      <header className="topbar"><div className="page-title"><div className="mini-mark">BC</div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div className={"status-pill "+(liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"status-live":liveTelemetry?"status-bridge":"status-web")}><i/> <b>{liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"LIVE":liveTelemetry?"BRIDGE":"WEB ONLINE"}</b> <span>{clock}</span></div></header>
+      <header className="topbar"><div className="page-title"><div className="mini-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="" /></div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div className={"status-pill "+(liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"status-live":liveTelemetry?"status-bridge":"status-web")}><i/> <b>{liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"LIVE":liveTelemetry?"BRIDGE":"WEB ONLINE"}</b> <span>{clock}</span></div></header>
       <div className="metrics">{metrics.map(m=><article className="metric" key={m[0]}><div className="metric-icon">{m[3]}</div><div className="metric-label">{m[0]}</div><strong>{m[1]}</strong><small>{m[2]}</small></article>)}</div>
       <div className="notice"><b>STATUS</b><span>{notice}</span></div>
       <div className="content-grid">
