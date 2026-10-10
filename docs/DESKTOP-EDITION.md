@@ -1,34 +1,30 @@
-# Windows Desktop Edition (Initial Scaffold)
+# Windows Desktop Edition
 
-This repository now includes an Electron desktop wrapper and a Windows installer build workflow.
+The desktop package now builds the Next.js dashboard into the installer instead of relying on a hosted dashboard URL. Once packaged, the Electron app starts a local copy of the dashboard bound to `127.0.0.1` and opens it in an isolated desktop window.
 
-## What this first desktop scaffold does
+## Build on Windows
 
-- Packages the companion into a Windows NSIS setup executable.
-- Provides a desktop window, Start-menu shortcut, and uninstall support.
-- Loads the hosted web dashboard in an isolated Electron window.
-- Opens external links in the user's normal browser.
-- Produces a GitHub Actions artifact when the workflow is run.
-
-## Important current limitations
-
-This is a desktop wrapper around the web dashboard, not yet a fully offline bundled app. It needs the dashboard URL to be deployed and reachable. The current default is `https://bc-truck-works-live-companion.vercel.app`; change `BC_COMPANION_URL` in `electron/main.cjs` if the actual Vercel deployment uses a different domain.
-
-This scaffold does **not** include a local ATS/ETS2 telemetry bridge and does not make the existing placeholder telemetry status live. Do not advertise telemetry, speed/fuel/job data, or automatic alerts as working until the local bridge is implemented and tested with the games.
-
-## Build locally on Windows
-
-Install Node.js 20 and Git, then run:
+Install Node.js 20, then run from the repository folder:
 
 ```powershell
-npm ci
+npm install
 npm run desktop:dist
 ```
 
-The setup executable should be generated under `release/`.
+The installer is generated in `release/` as `BC-Truck-Works-Companion-Setup-1.0.0.exe` (version may change). The command builds the Next.js standalone output first, then packages it with Electron Builder.
 
-## Build in GitHub Actions
+## Build with GitHub Actions
 
-Open the repository's **Actions** tab, select **Build Windows Installer**, and choose **Run workflow**. The resulting installer is uploaded as a workflow artifact for 14 days. A tagged release (for example, `v1.0.0`) also triggers a build, but this workflow does not automatically publish a GitHub Release.
+Open **Actions → Build Windows Installer → Run workflow**. On success, download the Windows installer from the workflow run's Artifacts section. The artifact is temporary (14 days); it is not automatically published as a GitHub Release.
 
-Before public release, verify the URL, install/uninstall behavior, Windows Security reputation, and that all dashboard functions work inside Electron. A production installer should be code-signed when a certificate is available.
+## What works in this desktop scaffold
+
+- The bundled dashboard runs locally; it no longer needs the Vercel site to be online.
+- Co-driver prompt/chat, browser/device text-to-speech, optional browser speech recognition, voice settings, profiles, and saved preferences are available as implemented in the web dashboard.
+- A local health endpoint can verify that the bundled dashboard server started.
+
+## Important limitation: real game telemetry is not implemented yet
+
+This desktop package does **not** currently read ATS or ETS2 live telemetry. The status endpoint intentionally reports `not_connected`; speed, fuel, gear, RPM, destination distance, delivery deadline, fatigue/rest, and automatic telemetry-based callouts must not be shown as live. Making these work requires a compatible SCS telemetry plugin plus a tested local bridge and game-version validation. See [TELEMETRY-INTEGRATION.md](TELEMETRY-INTEGRATION.md).
+
+Before calling this a public release, run the workflow and test installation, launch, local health endpoint, microphone permissions, voice output, and uninstall on a Windows machine. Confirm the installer SHA-256 checksum and document signing status. The installer is not available for download until a successful build is reviewed and published.
