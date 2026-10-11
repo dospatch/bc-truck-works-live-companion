@@ -1,33 +1,30 @@
-# Discord release automation
+# Discord Companion server setup
 
-This repository can announce **published GitHub Releases** in Discord. It does not create Discord categories or channels: a webhook can only post in the channel it belongs to.
+The **Set Up Discord Companion Channels** GitHub Actions workflow creates the Companion category and its five text channels in your Discord server. It is safe to run again: it checks for the named category/channels before creating missing ones.
 
-## Planned Discord category and channels
+## One-time GitHub configuration
 
-Create this category manually (or use a separate Discord bot with the Manage Channels permission):
+1. In the Discord Developer Portal, open your bot application and create/copy the bot token. Never share the token in chat or commit it to the repository.
+2. Invite the bot to your intended server with the `bot` scope and the **Manage Channels**, **View Channels**, and **Send Messages** permissions. The bot must be able to view the existing channels to check for duplicates.
+3. In the GitHub repository, open **Settings → Secrets and variables → Actions**.
+4. Add repository secret `DISCORD_BOT_TOKEN` with the bot token as its value.
+5. Add repository variable `DISCORD_GUILD_ID` with your Discord server ID as its value. To copy it, enable Developer Mode in Discord, then right-click (or long-press) the server icon and choose **Copy Server ID**.
+6. Open **Actions → Set Up Discord Companion Channels → Run workflow** and run it on `feature/ats-ets2-live-telemetry`.
 
-- Category: `🚛 BC TRUCK WORKS — COMPANION APP`
-- `#feature-releases` — published version announcements (recommended webhook destination)
-- `#update-notes` — detailed feature and fix summaries
-- `#guides-and-installation` — installation, setup, and ATS/ETS2 telemetry guides
-- `#bug-reports-and-feedback` — issue reports and suggestions
-- `#downloads-and-patches` — installer links, checksums, and patch information
+## Channels created
 
-## Connect the release announcement
+Category: `🚛 BC TRUCK WORKS — COMPANION APP`
 
-1. In Discord, open **Server Settings → Integrations → Webhooks** (or the target channel's integrations), create a webhook for `#feature-releases`, and copy its URL.
-2. In GitHub, open this repository's **Settings → Secrets and variables → Actions → New repository secret**.
-3. Name the secret `DISCORD_WEBHOOK_RELEASES` and paste the webhook URL as its value. Do not commit the URL or post it in chat; anyone with it can post to that channel.
-4. Publish a GitHub Release. The **Discord Release Announcement** workflow will post the release title, tag, notes, and GitHub Release link.
+- `#feature-releases`
+- `#update-notes`
+- `#guides-and-installation`
+- `#bug-reports-and-feedback`
+- `#downloads-and-patches`
 
-If the secret is absent, the workflow is designed to skip the announcement rather than expose or invent credentials. If a configured webhook is invalid or Discord rejects the post, the workflow will fail so the problem is visible in Actions.
+The setup workflow creates missing channels; it does not delete or rename existing channels, change roles, or alter channel permissions. Review the server's existing permissions after creation.
 
-## Release workflow
+## Automatic release announcements
 
-1. Finish and test a feature.
-2. Add user-facing notes to the GitHub Release.
-3. Publish the release only when it is ready.
-4. The workflow announces the published version in `#feature-releases`.
-5. Add separate guide/update posts as needed.
+After the category exists, create a Discord webhook in `#feature-releases` and store its URL as the GitHub Actions repository secret `DISCORD_WEBHOOK_RELEASES`. The separate **Discord Release Announcement** workflow posts a message when a GitHub Release is published.
 
-The workflow does **not** publish releases, merge pull requests, create Discord channels, or upload any secrets. Channel creation requires a Discord bot token with the appropriate server permissions and a separate setup step.
+Reference: [Discord channel management API](https://discord.com/developers/docs/resources/guild#create-guild-channel).
