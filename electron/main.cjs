@@ -1,7 +1,6 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, utilityProcess } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { fork } = require("child_process");
 const http = require("http");
 
 let serverProcess;
@@ -57,11 +56,11 @@ function startTelemetryBridge() {
   const bridge = path.join(__dirname, "telemetry-bridge.cjs");
   log("Starting telemetry bridge:", bridge);
   if (!fs.existsSync(bridge)) throw new Error("Telemetry bridge file is missing: " + bridge);
-  telemetryProcess = fork(bridge, [], {
+  telemetryProcess = utilityProcess.fork(bridge, [], {
     cwd: __dirname,
-    execPath: process.execPath,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", BC_TELEMETRY_PORT: "32146", NODE_ENV: "production" },
-    stdio: ["ignore", "pipe", "pipe", "ipc"]
+    env: { ...process.env, BC_TELEMETRY_PORT: "32146", NODE_ENV: "production" },
+    stdio: "pipe",
+    serviceName: "BC Truck Works Telemetry Bridge"
   });
   attachChildLogs(telemetryProcess, "telemetry");
 }
@@ -72,11 +71,11 @@ function startLocalDashboard() {
   log("Starting dashboard server:", bundledServer);
   log("Resources path:", resources);
   if (!fs.existsSync(bundledServer)) throw new Error("Bundled dashboard server is missing: " + bundledServer);
-  serverProcess = fork(bundledServer, [], {
+  serverProcess = utilityProcess.fork(bundledServer, [], {
     cwd: path.dirname(bundledServer),
-    execPath: process.execPath,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: String(PORT), HOSTNAME: "127.0.0.1", NODE_ENV: "production" },
-    stdio: ["ignore", "pipe", "pipe", "ipc"]
+    env: { ...process.env, PORT: String(PORT), HOSTNAME: "127.0.0.1", NODE_ENV: "production" },
+    stdio: "pipe",
+    serviceName: "BC Truck Works Dashboard Server"
   });
   attachChildLogs(serverProcess, "dashboard");
   return waitForServer();
