@@ -53,12 +53,23 @@ function waitForServer(timeoutMs = 30000) {
 }
 
 function startTelemetryBridge() {
-  const bridge = path.join(__dirname, "telemetry-bridge.cjs");
+  // Packaged builds keep executable child-process scripts outside app.asar.
+  // This avoids trying to launch a script from Electron's virtual archive path.
+  const resources = process.resourcesPath || __dirname;
+  const bridgeCandidates = app.isPackaged
+    ? [path.join(resources, "telemetry", "telemetry-bridge.cjs")]
+    : [path.join(__dirname, "telemetry-bridge.cjs"), path.join(resources, "telemetry", "telemetry-bridge.cjs")];
+  const bridge = bridgeCandidates.find(candidate => fs.existsSync(candidate));
+  log("Telemetry bridge candidates:", bridgeCandidates.join(" | "));
+  if (!bridge) throw new Error("Telemetry bridge file is missing. Checked: " + bridgeCandidates.join(" | "));
+  const telemetryModules = path.join(resources, "telemetry", "node_modules");
+  const dashboardModules = path.join(resources, "app", "node_modules");
+  const nodePath = [telemetryModules, dashboardModules, process.env.NODE_PATH].filter(Boolean).join(path.delimiter);
   log("Starting telemetry bridge:", bridge);
-  if (!fs.existsSync(bridge)) throw new Error("Telemetry bridge file is missing: " + bridge);
+  log("Telemetry module search path:", nodePath);
   telemetryProcess = utilityProcess.fork(bridge, [], {
-    cwd: __dirname,
-    env: { ...process.env, BC_TELEMETRY_PORT: "32146", NODE_ENV: "production" },
+    cwd: path.dirname(bridge),
+    env: { ...process.env, NODE_PATH: nodePath, BC_TELEMETRY_PORT: "32146", NODE_ENV: "production" },
     stdio: "pipe",
     serviceName: "BC Truck Works Telemetry Bridge"
   });
