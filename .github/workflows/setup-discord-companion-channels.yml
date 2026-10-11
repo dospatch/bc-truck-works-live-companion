@@ -1,0 +1,95 @@
+name: Set Up Discord Companion Channels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup-discord:
+    name: Create or verify Companion category and channels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create missing Discord category and channels
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ vars.DISCORD_GUILD_ID }}
+        run: |
+          if [ -z "$DISCORD_BOT_TOKEN" ]; then
+            echo "::error::Add DISCORD_BOT_TOKEN under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ -z "$DISCORD_GUILD_ID" ]; then
+            echo "::error::Add DISCORD_GUILD_ID under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+          node <<'NODE'
+          const api = 'https://discord.com/api/v10';
+          const token = process.env.DISCORD_BOT_TOKEN;
+          const guildId = process.env.DISCORD_GUILD_ID;
+          const categoryName = '🚛 BC TRUCK WORKS — COMPANION APP';
+          const desiredChannels = [
+            { name: 'feature-releases', topic: 'Official BC Truck Works Live Companion version releases and announcements.' },
+            { name: 'update-notes', topic: 'New features, improvements, and bug fixes for the Companion app.' },
+            { name: 'guides-and-installation', topic: 'Installation help and ATS/ETS2 telemetry setup guides.' },
+            { name: 'bug-reports-and-feedback', topic: 'Report issues and share feedback about the Companion app.' },
+            { name: 'downloads-and-patches', topic: 'Official installers, checksums, and patch information.' }
+          ];
+
+          async function discord(path, options = {}) {
+            const response = await fetch(api + path, {
+              ...options,
+              headers: {
+                Authorization: `Bot ${token}`,
+                'Content-Type': 'application/json',
+                ...(options.headers || {})
+              }
+            });
+            const body = await response.text();
+            let data;
+            try { data = body ? JSON.parse(body) : null; } catch { data = body; }
+            if (!response.ok) {
+              throw new Error(`Discord API ${response.status} on ${path}: ${JSON.stringify(data)}`);
+            }
+            return data;
+          }
+
+          async function main() {
+            const channels = await discord(`/guilds/${guildId}/channels`);
+            let category = channels.find(c => c.type === 4 && c.name === categoryName);
+            if (!category) {
+              category = await discord(`/guilds/${guildId}/channels`, {
+                method: 'POST',
+                body: JSON.stringify({ name: categoryName, type: 4 })
+              });
+              console.log(`Created category: ${category.name}`);
+            } else {
+              console.log(`Category already exists: ${category.name}`);
+            }
+
+            for (const desired of desiredChannels) {
+              const existing = channels.find(c => c.type === 0 && c.name === desired.name && c.parent_id === category.id);
+              if (existing) {
+                console.log(`Already exists: #${existing.name}`);
+                continue;
+              }
+              const created = await discord(`/guilds/${guildId}/channels`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  name: desired.name,
+                  type: 0,
+                  parent_id: category.id,
+                  topic: desired.topic
+                })
+              });
+              console.log(`Created: #${created.name}`);
+            }
+            console.log('Discord Companion category and channels are ready.');
+          }
+
+          main().catch(error => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
