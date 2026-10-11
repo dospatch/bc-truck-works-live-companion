@@ -10,6 +10,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 let telemetry = null;
+let latestTelemetry = null;
 let connected = false;
 let lastUpdateAt = null;
 let initError = null;
@@ -22,7 +23,7 @@ function fractionPercent(value) {
   return n === null ? null : Math.round(Math.max(0, Math.min(1, n)) * 100);
 }
 function snapshot() {
-  const d = telemetry?.data?.current;
+  const d = latestTelemetry || telemetry?.data?.current;
   const fresh = connected && lastUpdateAt && Date.now() - lastUpdateAt < 3000;
   if (!d || !fresh || !d.sdkActive) {
     return {
@@ -87,9 +88,15 @@ function snapshot() {
 function startReader() {
   try {
     const { truckSimTelemetry } = require("trucksim-telemetry");
-    telemetry = truckSimTelemetry({ onUpdate: () => { lastUpdateAt = Date.now(); } });
-    telemetry.on("connected", () => { connected = true; lastUpdateAt = Date.now(); initError = null; });
-    telemetry.on("disconnected", () => { connected = false; });
+    telemetry = truckSimTelemetry({
+      onUpdate: (data) => {
+        if (data && typeof data === "object") latestTelemetry = data;
+        else latestTelemetry = telemetry?.data?.current || null;
+        lastUpdateAt = Date.now();
+      }
+    });
+    telemetry.on("connected", () => { connected = true; latestTelemetry = telemetry?.data?.current || latestTelemetry; lastUpdateAt = Date.now(); initError = null; });
+    telemetry.on("disconnected", () => { connected = false; latestTelemetry = null; });
     // The reader updates the shared-memory snapshot at 60 Hz; use its timestamp
     // only while the plugin is active, and report stale data as disconnected.
   } catch (error) {
