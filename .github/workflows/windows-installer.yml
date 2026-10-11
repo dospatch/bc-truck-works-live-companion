@@ -38,7 +38,6 @@ jobs:
           $required = @(
             ".next/standalone/server.js",
             ".next/standalone/node_modules/next/package.json",
-            ".next/standalone/node_modules/styled-jsx/package.json",
             ".next/standalone/node_modules/react/package.json",
             ".next/standalone/node_modules/react-dom/package.json"
           )
