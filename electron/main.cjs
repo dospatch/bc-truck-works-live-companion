@@ -67,13 +67,24 @@ function startTelemetryBridge() {
 
 function startLocalDashboard() {
   const resources = process.resourcesPath || __dirname;
-  const bundledServer = path.join(resources, "app", "server.js");
-  log("Starting dashboard server:", bundledServer);
+  // Packaged builds use the standalone Next.js runtime copied to resources/app.
+  // Development runs use the generated standalone runtime inside the repository.
+  const candidates = app.isPackaged
+    ? [path.join(resources, "app", "server.js")]
+    : [path.join(__dirname, "..", ".next", "standalone", "server.js"), path.join(resources, "app", "server.js")];
+  const bundledServer = candidates.find(candidate => fs.existsSync(candidate));
+  log("Dashboard server candidates:", candidates.join(" | "));
   log("Resources path:", resources);
-  if (!fs.existsSync(bundledServer)) throw new Error("Bundled dashboard server is missing: " + bundledServer);
+  if (!bundledServer) throw new Error("Next.js standalone server is missing. Run npm run build and verify .next/standalone/server.js exists.");
+  const dashboardDir = path.dirname(bundledServer);
+  const nodeModules = path.join(dashboardDir, "node_modules");
+  if (!fs.existsSync(path.join(nodeModules, "next", "package.json"))) {
+    throw new Error("Next.js runtime dependency is missing from " + nodeModules + ". Rebuild the standalone dashboard and installer.");
+  }
+  log("Starting dashboard server:", bundledServer);
   serverProcess = utilityProcess.fork(bundledServer, [], {
-    cwd: path.dirname(bundledServer),
-    env: { ...process.env, PORT: String(PORT), HOSTNAME: "127.0.0.1", NODE_ENV: "production" },
+    cwd: dashboardDir,
+    env: { ...process.env, NODE_PATH: [nodeModules, process.env.NODE_PATH].filter(Boolean).join(path.delimiter), PORT: String(PORT), HOSTNAME: "127.0.0.1", NODE_ENV: "production" },
     stdio: "pipe",
     serviceName: "BC Truck Works Dashboard Server"
   });
