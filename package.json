@@ -33,7 +33,7 @@
     },
     "files": [
       "electron/**/*",
-      "package.json",
+      "package.json"
     ],
     "asar": true,
     "win": {
