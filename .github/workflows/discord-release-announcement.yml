@@ -16,14 +16,7 @@ jobs:
     name: Announce published release
     runs-on: ubuntu-latest
     steps:
-      - name: Skip when Discord webhook is not configured
-        if: ${{ env.DISCORD_WEBHOOK_RELEASES == '' }}
-        env:
-          DISCORD_WEBHOOK_RELEASES: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
-        run: echo "DISCORD_WEBHOOK_RELEASES is not configured; skipping Discord announcement."
-
-      - name: Post release announcement to Discord
-        if: ${{ env.DISCORD_WEBHOOK_RELEASES != '' }}
+      - name: Post release announcement when configured
         env:
           DISCORD_WEBHOOK_RELEASES: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
           RELEASE_NAME: ${{ github.event.release.name }}
@@ -32,6 +25,10 @@ jobs:
           RELEASE_NOTES: ${{ github.event.release.body }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          if [ -z "$DISCORD_WEBHOOK_RELEASES" ]; then
+            echo "DISCORD_WEBHOOK_RELEASES is not configured; skipping Discord announcement."
+            exit 0
+          fi
           node <<'NODE'
           const webhook = process.env.DISCORD_WEBHOOK_RELEASES;
           const title = (process.env.RELEASE_NAME || '').trim() || `BC Truck Works Live Companion ${process.env.RELEASE_TAG}`;
