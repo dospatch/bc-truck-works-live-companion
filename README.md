@@ -27,3 +27,10 @@ The installer is produced in `release/`.
 The hosted website can show website availability, but it cannot directly access a game's local telemetry feed. Real ATS/ETS2 readings require the Windows desktop companion, a supported SCS telemetry plugin, and the local telemetry bridge. The dashboard intentionally shows unavailable values rather than inventing live speed, fuel, route, or alert data.
 
 See [telemetry integration notes](docs/TELEMETRY-INTEGRATION.md) before testing in-game.
+
+
+## Optional telemetry overlay (development branch)
+
+The telemetry overlay route is available at `/overlay` in this branch. In the Windows desktop app, use **Ctrl+Shift+O** to open or hide the compact always-on-top overlay. It reads from the same loopback telemetry bridge as the dashboard and deliberately shows unavailable values when no live simulator data is connected.
+
+This overlay change is on `feature/ats-ets2-live-telemetry`; it has not been merged into `main` or published as an installer. A Windows build and in-game validation are still required before it can be considered release-ready.
