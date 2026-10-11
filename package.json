@@ -57,10 +57,6 @@
         "to": "app"
       },
       {
-        "from": "node_modules/next",
-        "to": "app/node_modules/next"
-      },
-      {
         "from": ".next/static",
         "to": "app/.next/static"
       }
