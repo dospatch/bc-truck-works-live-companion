@@ -52,6 +52,22 @@ jobs:
         run: npx electron-builder --win nsis
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify packaged dashboard runtime
+        shell: pwsh
+        run: |
+          $required = @(
+            "release/win-unpacked/resources/app/server.js",
+            "release/win-unpacked/resources/app/node_modules/next/package.json",
+            "release/win-unpacked/resources/app/node_modules/react/package.json",
+            "release/win-unpacked/resources/app/node_modules/react-dom/package.json"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              Write-Error "Packaged runtime dependency missing: $path"
+              exit 1
+            }
+          }
+          Write-Host "Packaged dashboard runtime dependencies are present."
       - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
