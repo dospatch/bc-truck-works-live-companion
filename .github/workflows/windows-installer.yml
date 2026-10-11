@@ -39,7 +39,9 @@ jobs:
             ".next/standalone/server.js",
             ".next/standalone/node_modules/next/package.json",
             ".next/standalone/node_modules/react/package.json",
-            ".next/standalone/node_modules/react-dom/package.json"
+            ".next/standalone/node_modules/react-dom/package.json",
+            "node_modules/trucksim-telemetry/package.json",
+            "electron/telemetry-bridge.cjs"
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) {
@@ -47,7 +49,9 @@ jobs:
               exit 1
             }
           }
-          Write-Host "Standalone server and runtime dependencies are present."
+          $telemetryPackage = Get-Content "node_modules/trucksim-telemetry/package.json" -Raw | ConvertFrom-Json
+          Write-Host "Telemetry package version:" $telemetryPackage.version
+          Write-Host "Standalone server, telemetry bridge, and runtime dependencies are present."
       - name: Package Windows installer
         run: npx electron-builder --win nsis
         env:
@@ -59,7 +63,9 @@ jobs:
             "release/win-unpacked/resources/app/server.js",
             "release/win-unpacked/resources/app/node_modules/next/package.json",
             "release/win-unpacked/resources/app/node_modules/react/package.json",
-            "release/win-unpacked/resources/app/node_modules/react-dom/package.json"
+            "release/win-unpacked/resources/app/node_modules/react-dom/package.json",
+            "release/win-unpacked/resources/telemetry/telemetry-bridge.cjs",
+            "release/win-unpacked/resources/telemetry/node_modules/trucksim-telemetry/package.json"
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) {
@@ -67,7 +73,7 @@ jobs:
               exit 1
             }
           }
-          Write-Host "Packaged dashboard runtime dependencies are present."
+          Write-Host "Packaged dashboard and telemetry runtime dependencies are present."
       - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
