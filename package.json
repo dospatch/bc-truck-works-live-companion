@@ -71,6 +71,17 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "electron/telemetry-bridge.cjs",
+        "to": "telemetry/telemetry-bridge.cjs"
+      },
+      {
+        "from": "node_modules/trucksim-telemetry",
+        "to": "telemetry/node_modules/trucksim-telemetry",
+        "filter": [
+          "**/*"
+        ]
       }
     ]
   }
