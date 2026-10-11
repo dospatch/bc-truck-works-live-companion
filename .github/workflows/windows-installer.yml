@@ -32,6 +32,23 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build Next.js standalone dashboard
         run: npm run build
+      - name: Verify standalone runtime dependencies
+        shell: pwsh
+        run: |
+          $required = @(
+            ".next/standalone/server.js",
+            ".next/standalone/node_modules/next/package.json",
+            ".next/standalone/node_modules/styled-jsx/package.json",
+            ".next/standalone/node_modules/react/package.json",
+            ".next/standalone/node_modules/react-dom/package.json"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              Write-Error "Standalone runtime dependency missing: $path"
+              exit 1
+            }
+          }
+          Write-Host "Standalone server and runtime dependencies are present."
       - name: Package Windows installer
         run: npx electron-builder --win nsis
         env:
