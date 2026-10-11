@@ -34,8 +34,6 @@
     "files": [
       "electron/**/*",
       "package.json",
-      ".next/standalone/**/*",
-      ".next/static/**/*"
     ],
     "asar": true,
     "win": {
