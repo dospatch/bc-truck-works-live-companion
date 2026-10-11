@@ -1,0 +1,71 @@
+name: Discord Release Announcement
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-release-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+jobs:
+  announce:
+    name: Announce published release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip when Discord webhook is not configured
+        if: ${{ env.DISCORD_WEBHOOK_RELEASES == '' }}
+        env:
+          DISCORD_WEBHOOK_RELEASES: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
+        run: echo "DISCORD_WEBHOOK_RELEASES is not configured; skipping Discord announcement."
+
+      - name: Post release announcement to Discord
+        if: ${{ env.DISCORD_WEBHOOK_RELEASES != '' }}
+        env:
+          DISCORD_WEBHOOK_RELEASES: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_NOTES: ${{ github.event.release.body }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          node <<'NODE'
+          const webhook = process.env.DISCORD_WEBHOOK_RELEASES;
+          const title = (process.env.RELEASE_NAME || '').trim() || `BC Truck Works Live Companion ${process.env.RELEASE_TAG}`;
+          const notes = (process.env.RELEASE_NOTES || 'Release notes were not provided.').slice(0, 3500);
+          const payload = {
+            username: 'BC Truck Works Releases',
+            embeds: [{
+              title: title.slice(0, 256),
+              url: process.env.RELEASE_URL,
+              description: notes,
+              color: 0x2D7D46,
+              fields: [
+                { name: 'Version', value: String(process.env.RELEASE_TAG || 'Unspecified').slice(0, 256), inline: true },
+                { name: 'Repository', value: String(process.env.REPOSITORY || '').slice(0, 256), inline: true }
+              ],
+              footer: { text: 'BC Truck Works • Official release announcement' },
+              timestamp: new Date().toISOString()
+            }],
+            allowed_mentions: { parse: [] }
+          };
+          fetch(webhook, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).then(async response => {
+            if (!response.ok) {
+              const body = await response.text();
+              console.error(`Discord webhook returned ${response.status}: ${body}`);
+              process.exitCode = 1;
+            } else {
+              console.log('Release announcement sent to Discord.');
+            }
+          }).catch(error => {
+            console.error('Failed to send Discord announcement:', error);
+            process.exitCode = 1;
+          });
+          NODE
