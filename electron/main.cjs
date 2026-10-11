@@ -1,10 +1,11 @@
-const { app, BrowserWindow, shell, utilityProcess } = require("electron");
+const { app, BrowserWindow, shell, utilityProcess, globalShortcut } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
 
 let serverProcess;
 let telemetryProcess;
+let overlayWindow;
 let logStream;
 const PORT = Number(process.env.BC_COMPANION_PORT || 32145);
 const URL = `http://127.0.0.1:${PORT}`;
@@ -117,7 +118,35 @@ async function createWindow() {
   }
 }
 
+
+function toggleOverlay() {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    if (overlayWindow.isVisible()) overlayWindow.hide();
+    else overlayWindow.showInactive();
+    return;
+  }
+  overlayWindow = new BrowserWindow({
+    width: 340, height: 540, minWidth: 280, minHeight: 420,
+    title: "BC Truck Works Telemetry Overlay",
+    transparent: true, backgroundColor: "#00000000",
+    frame: false, resizable: true, alwaysOnTop: true,
+    skipTaskbar: true, autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  overlayWindow.setAlwaysOnTop(true, "screen-saver");
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlayWindow.on("closed", () => { overlayWindow = null; });
+  overlayWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  overlayWindow.loadURL(URL + "/overlay").catch(err => log("Overlay load failed:", err));
+}
+
+function registerOverlayShortcuts() {
+  const ok = globalShortcut.register("Control+Shift+O", toggleOverlay);
+  log("Overlay shortcut Ctrl+Shift+O registered:", ok);
+}
+
 app.whenReady().then(() => {
+  registerOverlayShortcuts();
   try {
     const logPath = path.join(app.getPath("userData"), "startup.log");
     logStream = fs.createWriteStream(logPath, { flags: "a" });
@@ -136,6 +165,8 @@ app.whenReady().then(() => {
 process.on("uncaughtException", err => log("Uncaught exception:", err));
 process.on("unhandledRejection", reason => log("Unhandled rejection:", reason));
 app.on("before-quit", () => {
+  globalShortcut.unregisterAll();
+  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.destroy();
   log("Application quitting.");
   if (serverProcess && !serverProcess.killed) serverProcess.kill();
   if (telemetryProcess && !telemetryProcess.killed) telemetryProcess.kill();
