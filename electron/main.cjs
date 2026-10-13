@@ -69,7 +69,7 @@ function startTelemetryBridge() {
   log("Telemetry module search path:", nodePath);
   telemetryProcess = utilityProcess.fork(bridge, [], {
     cwd: path.dirname(bridge),
-    env: { ...process.env, NODE_PATH: nodePath, BC_TELEMETRY_PORT: "32146", NODE_ENV: "production" },
+    env: { ...process.env, NODE_PATH: nodePath, BC_TELEMETRY_PORT: "32146", BC_USER_DATA_DIR: app.getPath("userData"), NODE_ENV: "production" },
     stdio: "pipe",
     serviceName: "BC Truck Works Telemetry Bridge"
   });
