@@ -1,0 +1,48 @@
+name: Register BC Truck Works Slash Commands
+
+on:
+  workflow_dispatch:
+    inputs:
+      discord_guild_id:
+        description: 'Discord server ID where commands should be available'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Register guild slash commands
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+          DISCORD_GUILD_ID: ${{ inputs.discord_guild_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DISCORD_BOT_TOKEN" ] || [ -z "$DISCORD_APPLICATION_ID" ]; then
+            echo "::error::Add DISCORD_BOT_TOKEN and DISCORD_APPLICATION_ID under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if ! [[ "$DISCORD_GUILD_ID" =~ ^[0-9]{17,20}$ ]] || ! [[ "$DISCORD_APPLICATION_ID" =~ ^[0-9]{17,20}$ ]]; then
+            echo "::error::The Discord guild/application ID is invalid."
+            exit 1
+          fi
+          cat > /tmp/commands.json <<'JSON'
+          [
+            {"name":"convoy","description":"Open the live BC Truck Works convoy"},
+            {"name":"connect","description":"Pair your desktop companion with the website"},
+            {"name":"help","description":"Show setup and safety guidance for the companion"},
+            {"name":"support","description":"Show where to get help or report a bug"}
+          ]
+          JSON
+          curl --fail-with-body --silent --show-error \
+            -X PUT \
+            -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/commands.json \
+            "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/guilds/$DISCORD_GUILD_ID/commands"
+          echo
+          echo "Registered /convoy, /connect, /help, and /support for the selected server."
