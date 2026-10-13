@@ -1,4 +1,6 @@
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.BC_TELEMETRY_PORT || 32146);
@@ -13,6 +15,10 @@ let telemetry = null;
 let connected = false;
 let lastUpdateAt = null;
 let initError = null;
+let pairedToken = null;
+let pairedWebsite = null;
+const pairingFile = path.join(process.env.BC_USER_DATA_DIR || process.cwd(), "website-pairing.json");
+try { const saved = JSON.parse(fs.readFileSync(pairingFile, "utf8")); pairedToken = saved.token || null; pairedWebsite = saved.website || null; } catch {}
 
 function numberOrNull(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -113,7 +119,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  if (req.method !== "GET" || (req.url !== "/status" && req.url !== "/health")) {
+  if (req.method === "POST" && req.url === "/pair") {\n    let raw = ""; req.on("data", chunk => { raw += chunk; if (raw.length > 8192) req.destroy(); });\n    req.on("end", async () => {\n      try {\n        const body = JSON.parse(raw || "{}");\n        const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";\n        const website = typeof body.website === "string" ? body.website.replace(/\\/$/, "") : "";\n        if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code) || !/^https:\\/\\//.test(website) && !/^http:\\/\\/localhost(?::\\d+)?$/.test(website)) throw new Error("Enter a valid code and trusted website URL.");\n        const response = await fetch(website + "/api/pair/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, name: process.env.BC_DRIVER_NAME || "BC Truck Works Driver" }) });\n        const data = await response.json(); if (!response.ok || !data.token) throw new Error(data.error || "Pairing failed.");\n        pairedToken = data.token; pairedWebsite = website; fs.mkdirSync(path.dirname(pairingFile), { recursive: true }); fs.writeFileSync(pairingFile, JSON.stringify({ token: pairedToken, website: pairedWebsite }), { mode: 0o600 });\n        res.writeHead(200); res.end(JSON.stringify({ ok: true, name: data.name }));\n      } catch (error) { res.writeHead(400); res.end(JSON.stringify({ ok: false, error: String(error.message || error).slice(0, 180) })); }\n    }); return;\n  }\n  if (req.method !== "GET" || (req.url !== "/status" && req.url !== "/health")) {
     res.writeHead(404);
     return res.end(JSON.stringify({ ok: false, error: "Not found." }));
   }
@@ -132,7 +138,7 @@ const server = http.createServer((req, res) => {
 
 startReader();
 server.listen(PORT, HOST, () => console.log(`BC telemetry bridge listening on http://${HOST}:${PORT}`));
-server.on("error", error => {
+setInterval(async () => {\n  if (!pairedToken || !pairedWebsite) return;\n  const current = snapshot(); if (!current.connected || !current.valuesAreLive) return;\n  const d = current;\n  const wear = d.wear || {};\n  const payload = { speedKmh: d.speedKmh, speedLimitKmh: d.speedLimitKmh, fuel: d.fuel, fuelCapacity: d.fuelCapacity, engineWear: wear.engine, transmissionWear: wear.transmission, cabinWear: wear.cabin, chassisWear: wear.chassis, wheelWear: wear.wheels, cargoWear: wear.cargo, sourceCity: d.job?.sourceCity, destinationCity: d.job?.destination, cargo: d.job?.cargo, navigationDistanceKm: d.navigationDistanceKm, etaMinutes: d.etaMinutes, placement: d.placement, driving: !d.status?.includes("paused") && (d.speedKmh || 0) > 0 };\n  try { await fetch(pairedWebsite + "/api/telemetry", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + pairedToken }, body: JSON.stringify(payload), signal: AbortSignal.timeout(5000) }); } catch (error) { console.error("Website telemetry upload failed:", String(error.message || error).slice(0, 160)); }\n}, 2000).unref();\n\nserver.on("error", error => {
   initError = String(error?.message || error).slice(0, 300);
   console.error("BC telemetry bridge server error:", initError);
 });
