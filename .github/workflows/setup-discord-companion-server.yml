@@ -1,0 +1,132 @@
+name: Set Up BC Truck Works Discord
+
+on:
+  workflow_dispatch:
+    inputs:
+      discord_guild_id:
+        description: 'Discord server ID'
+        required: true
+        type: string
+      staff_role_id:
+        description: 'Optional staff/moderator role ID for private support moderation'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  setup-discord:
+    name: Create channels and apply permissions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update Companion category, channels, and permissions
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ inputs.discord_guild_id }}
+          DISCORD_STAFF_ROLE_ID: ${{ inputs.staff_role_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DISCORD_BOT_TOKEN" ]; then
+            echo "::error::Add DISCORD_BOT_TOKEN under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if ! [[ "$DISCORD_GUILD_ID" =~ ^[0-9]{17,20}$ ]]; then
+            echo "::error::Enter a valid Discord server ID."
+            exit 1
+          fi
+          node <<'NODE'
+          const api = 'https://discord.com/api/v10';
+          const token = process.env.DISCORD_BOT_TOKEN;
+          const guildId = process.env.DISCORD_GUILD_ID;
+          const staffRoleId = process.env.DISCORD_STAFF_ROLE_ID;
+          const PERMS = {
+            VIEW_CHANNEL: 1n << 10n,
+            SEND_MESSAGES: 1n << 11n,
+            READ_MESSAGE_HISTORY: 1n << 16n,
+            ATTACH_FILES: 1n << 15n,
+            EMBED_LINKS: 1n << 14n
+          };
+          const bits = (...names) => names.reduce((sum, name) => sum | PERMS[name], 0n).toString();
+          const categoryName = '🚛 BC TRUCK WORKS — COMPANION APP';
+          const channelsWanted = [
+            { name: 'feature-releases', topic: 'Official BC Truck Works Live Companion releases and announcements.', mode: 'read-only' },
+            { name: 'update-notes', topic: 'New features, improvements, and bug fixes.', mode: 'read-only' },
+            { name: 'guides-and-installation', topic: 'ATS/ETS2 installation, pairing, and telemetry setup guides.', mode: 'read-only' },
+            { name: 'downloads-and-patches', topic: 'Official installers, patch notes, and checksum information.', mode: 'read-only' },
+            { name: 'bug-reports-and-feedback', topic: 'Report bugs and share Companion app feedback. Do not post tokens or private data.', mode: 'support' },
+            { name: 'companion-help', topic: 'Ask questions about pairing, convoy status, and desktop app setup.', mode: 'support' }
+          ];
+
+          async function discord(path, options = {}) {
+            const response = await fetch(api + path, {
+              ...options,
+              headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
+            });
+            const text = await response.text();
+            let data;
+            try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+            if (!response.ok) throw new Error(`Discord API ${response.status} on ${path}: ${JSON.stringify(data)}`);
+            return data;
+          }
+
+          async function main() {
+            const [guild, roles, channels] = await Promise.all([
+              discord(`/guilds/${guildId}`),
+              discord(`/guilds/${guildId}/roles`),
+              discord(`/guilds/${guildId}/channels`)
+            ]);
+            const botUser = await discord('/users/@me');
+            const botMember = await discord(`/guilds/${guildId}/members/${botUser.id}`);
+            const botRoleIds = botMember.roles || [];
+            const botTopPosition = Math.max(0, ...roles.filter(r => botRoleIds.includes(r.id)).map(r => r.position));
+            if (!guild.id) throw new Error('Could not verify the target Discord server.');
+            if (staffRoleId && !roles.some(r => r.id === staffRoleId)) throw new Error('The supplied staff role ID does not belong to this server.');
+
+            // The category defaults to visible but not writable. Per-channel overwrites
+            // explicitly enable member messages only in support channels.
+            const everyone = roles.find(r => r.id === guildId);
+            if (!everyone) throw new Error('Could not find the @everyone role.');
+            const categoryOverwrites = [
+              { id: guildId, type: 0, allow: bits('VIEW_CHANNEL','READ_MESSAGE_HISTORY'), deny: bits('SEND_MESSAGES') }
+            ];
+            if (staffRoleId) categoryOverwrites.push({
+              id: staffRoleId, type: 0, allow: bits('VIEW_CHANNEL','SEND_MESSAGES','READ_MESSAGE_HISTORY','ATTACH_FILES','EMBED_LINKS'), deny: '0'
+            });
+
+            let category = channels.find(c => c.type === 4 && c.name === categoryName);
+            const categoryBody = { name: categoryName, type: 4, permission_overwrites: categoryOverwrites };
+            if (!category) {
+              category = await discord(`/guilds/${guildId}/channels`, { method: 'POST', body: JSON.stringify(categoryBody) });
+              console.log(`Created category ${category.name}`);
+            } else {
+              category = await discord(`/channels/${category.id}`, { method: 'PATCH', body: JSON.stringify(categoryBody) });
+              console.log(`Updated category permissions ${category.name}`);
+            }
+
+            for (const wanted of channelsWanted) {
+              const support = wanted.mode === 'support';
+              const overwrites = [
+                { id: guildId, type: 0, allow: bits('VIEW_CHANNEL','READ_MESSAGE_HISTORY', ...(support ? ['SEND_MESSAGES','ATTACH_FILES','EMBED_LINKS'] : [])), deny: support ? '0' : bits('SEND_MESSAGES') }
+              ];
+              if (staffRoleId) overwrites.push({
+                id: staffRoleId, type: 0,
+                allow: bits('VIEW_CHANNEL','SEND_MESSAGES','READ_MESSAGE_HISTORY','ATTACH_FILES','EMBED_LINKS'),
+                deny: '0'
+              });
+              const existing = channels.find(c => c.type === 0 && c.name === wanted.name && c.parent_id === category.id);
+              const body = { name: wanted.name, type: 0, parent_id: category.id, topic: wanted.topic, permission_overwrites: overwrites };
+              if (existing) {
+                await discord(`/channels/${existing.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+                console.log(`Updated #${wanted.name} and permissions`);
+              } else {
+                await discord(`/guilds/${guildId}/channels`, { method: 'POST', body: JSON.stringify(body) });
+                console.log(`Created #${wanted.name}`);
+              }
+            }
+            console.log('Discord Companion category and channels are ready. Members can post in support channels; announcement and download channels are read-only.');
+            console.log('Ensure the bot role has Manage Channels and is above any supplied staff role.');
+          }
+
+          main().catch(error => { console.error(error.message); process.exit(1); });
+          NODE
