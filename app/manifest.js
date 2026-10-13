@@ -1,0 +1,1 @@
+export default function manifest(){return {name:"BC Truck Works Live Companion",short_name:"BC Truck Works",description:"Live ATS and ETS2 convoy companion",start_url:"/convoy",display:"standalone",background_color:"#070d17",theme_color:"#08111f",icons:[{src:"/icons/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]};}

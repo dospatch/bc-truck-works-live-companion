@@ -190,6 +190,20 @@ export default function Home() {
     ["ECO SCORE","—","trip scoring not implemented","✦"],
     ["ALERTS",live ? "—" : "—",live ? "alert rules not implemented" : "no live telemetry","♧"]
   ];
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const [pairingCode, setPairingCode] = useState("");
+  const [pairingWebsite, setPairingWebsite] = useState("https://bc-truck-works-live-companion.vercel.app");
+  const [pairingStatus, setPairingStatus] = useState("");
+  async function pairDesktop() {
+    setPairingStatus("Connecting securely…");
+    try {
+      const response = await fetch("http://127.0.0.1:32146/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: pairingCode, website: pairingWebsite }) });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Pairing failed.");
+      setPairingStatus("Paired successfully. This desktop will upload live telemetry when the game is running.");
+      setPairingCode("");
+    } catch (error) { setPairingStatus(error.message || "Pairing failed. Open this page in the desktop companion."); }
+  }
   const toggle=(checked,setter,label)=><input className="toggle" type="checkbox" checked={checked} onChange={e=>setter(e.target.checked)} aria-label={label}/>;
   return <main className="app-shell">
     <aside className="sidebar">
@@ -198,9 +212,10 @@ export default function Home() {
       <div className="sidebar-bottom"><b>DRIVE · BUILD · SUCCEED</b><span>Built for the road ahead.</span><span>BC Truck Works © 2026</span></div>
     </aside>
     <section className="workspace">
-      <header className="topbar"><div className="page-title"><div className="mini-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="" /></div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div className={"status-pill "+(liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"status-live":liveTelemetry?"status-bridge":"status-web")}><i/> <b>{liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"LIVE":liveTelemetry?"BRIDGE":"WEB ONLINE"}</b> <span>{clock}</span></div></header>
+      <header className="topbar"><div className="page-title"><div className="mini-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="" /></div><div><h1>BC TRUCK WORKS <span>• LIVE COMPANION</span></h1><p>YOUR RIDE · YOUR ROUTE · YOUR SUPPORT</p></div></div><div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><button type="button" className="outline-button" onClick={()=>setPairingOpen(v=>!v)}>Connect my game</button><div className={"status-pill "+(liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"status-live":liveTelemetry?"status-bridge":"status-web")}><i/> <b>{liveTelemetry?.connected&&liveTelemetry?.valuesAreLive?"LIVE":liveTelemetry?"BRIDGE":"WEB ONLINE"}</b> <span>{clock}</span></div></div></header>
       <div className="metrics">{metrics.map(m=><article className="metric" key={m[0]}><div className="metric-icon">{m[3]}</div><div className="metric-label">{m[0]}</div><strong>{m[1]}</strong><small>{m[2]}</small></article>)}</div>
       <div className="notice"><b>STATUS</b><span>{notice}</span></div>
+      {pairingOpen&&<section className="panel" style={{marginBottom:14}}><header className="panel-heading"><h2><i/> PAIR THIS DESKTOP TO YOUR WEBSITE</h2><button className="outline-button" onClick={()=>setPairingOpen(false)}>Close</button></header><p className="helper-text">Open Connect my game on your website to generate a one-time code that expires after 10 minutes. Your per-driver token is stored locally by the desktop bridge.</p><div className="setting-fields" style={{gridTemplateColumns:"minmax(0,1fr) minmax(0,2fr)"}}><label>6-CHARACTER CODE<input autoComplete="off" maxLength={6} value={pairingCode} onChange={e=>setPairingCode(e.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,""))} placeholder="ABC234"/></label><label>WEBSITE URL<input value={pairingWebsite} onChange={e=>setPairingWebsite(e.target.value)} placeholder="https://your-site.vercel.app"/></label></div><button type="button" className="primary-button" style={{marginTop:12,minHeight:44}} onClick={pairDesktop} disabled={pairingCode.length!==6}>Pair desktop app</button>{pairingStatus&&<p role="status" className="helper-text">{pairingStatus}</p>}</section>}
       <div className="content-grid">
         <div className="left-column">
           <section className="panel chat-panel"><header className="panel-heading"><h2><i/> TALK TO YOUR CO-DRIVER</h2><button className="outline-button" onClick={listen}>{listening?"🎙 Listening…":"🎙 Speak to co-driver"}</button></header>
