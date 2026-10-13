@@ -11,7 +11,8 @@
     "start:production": "node index.js",
     "lint": "eslint .",
     "desktop:start": "electron .",
-    "desktop:dist": "npm install --include=dev && npm run build && electron-builder --win nsis"
+    "desktop:dist": "npm install --include=dev && npm run build && electron-builder --win nsis",
+    "simulate:convoy": "node scripts/simulate-convoy.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
