@@ -91,3 +91,12 @@ html{scroll-behavior:smooth;scroll-padding-top:18px}
 .nav-module-placeholder{margin:0 0 14px;scroll-margin-top:18px}
 .nav-module-placeholder p{line-height:1.7;max-width:760px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+
+/* Sidebar module hub actions and future-module descriptions. */
+.nav-module-placeholder > p:not(.helper-text){color:#a9bfd7;font-size:13px;line-height:1.8;margin:8px 0 16px}
+.module-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.module-actions .outline-button{white-space:normal;text-align:left;min-height:40px}
+.nav-group{min-width:0}
+.nav-item{width:100%;text-align:left;cursor:pointer}
+.nav-item:active{transform:translateY(1px)}
