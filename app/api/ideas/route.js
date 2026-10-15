@@ -97,8 +97,11 @@ export async function POST(request) {
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
-      console.error("Discord ideas webhook returned HTTP", response.status);
-      return NextResponse.json({ error: "Discord could not accept the idea right now. Please try again later." }, { status: 502 });
+      // Discord returns a short JSON error explaining why it rejected the request.
+      // Log the response body (never the webhook URL) so production failures can be diagnosed.
+      const discordError = (await response.text()).slice(0, 1200);
+      console.error("Discord ideas webhook returned HTTP", response.status, discordError);
+      return NextResponse.json({ error: "Discord rejected the idea (HTTP " + response.status + "). Please check the ideas webhook configuration or try again later." }, { status: 502 });
     }
     return NextResponse.json({ ok: true, message: "Your idea was sent to the BC Truck Works Discord ideas channel." });
   } catch (error) {
