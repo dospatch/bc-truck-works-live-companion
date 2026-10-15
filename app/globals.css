@@ -63,3 +63,17 @@
 .ideas-submit{width:100%;margin-top:22px;padding:14px;border:1px solid #2998ff;border-radius:9px;background:linear-gradient(135deg,#2296ff,#0960ca);color:#fff;font-size:13px;font-weight:900}.ideas-submit:disabled{opacity:.65;cursor:wait}.ideas-status{border-radius:8px;padding:12px;font-size:12px;line-height:1.6}.ideas-status.is-success{background:#103c2d;border:1px solid #267a5b;color:#b9f6d9}.ideas-status.is-error{background:#3b1d24;border:1px solid #7e3945;color:#ffd1d7}.ideas-privacy{color:#728ba6;font-size:10px;line-height:1.6;margin:14px 0 0}.ideas-side{display:grid;gap:12px}.ideas-info-card{padding:18px}.ideas-info-card>span{font-size:23px}.ideas-info-card h3{font-size:13px;margin:10px 0 7px}.ideas-info-card p{font-size:11px;color:#91a9c3;line-height:1.75;margin:0}.ideas-dashboard-link{font-size:11px;color:#68baff;text-decoration:none;padding:7px 2px}.ideas-footer{max-width:1020px;margin:28px auto 0;padding-top:16px;border-top:1px solid #1b3047;color:#7691af;font-size:9px;letter-spacing:.12em;text-align:center}
 .ideas-honeypot{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
 @media(max-width:720px){.ideas-topbar{align-items:flex-start}.ideas-back{font-size:10px;margin-top:8px}.ideas-hero{margin:36px auto 22px}.ideas-hero p{font-size:12px}.ideas-layout{grid-template-columns:1fr}.ideas-side{grid-template-columns:1fr}.ideas-form{padding:17px}}
+
+
+/* BC Truck Works primary sidebar: fixed drawer on phones, permanent on desktop. */
+.mobile-nav-toggle,.sidebar-scrim{display:none}
+@media(max-width:760px){
+  .app-shell{display:block;padding-top:58px;min-height:100vh}
+  .sidebar{display:flex;position:fixed;z-index:90;top:0;left:0;bottom:0;width:min(290px,86vw);height:100dvh;min-height:0;overflow-y:auto;transform:translateX(-105%);transition:transform .2s ease;box-shadow:12px 0 34px #0008}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .mobile-nav-toggle{display:inline-flex;position:fixed;z-index:101;top:10px;left:12px;align-items:center;justify-content:center;min-height:40px;padding:9px 13px;border:1px solid #2b5578;border-radius:10px;background:#10243a;color:#fff;font-size:12px;font-weight:800;box-shadow:0 4px 18px #0005}
+  .sidebar-scrim{display:block;position:fixed;inset:0;z-index:80;border:0;background:#0009}
+  .workspace{padding:12px}
+  .topbar{padding-top:2px}
+}
+@media(prefers-reduced-motion:reduce){.sidebar{transition:none}}
