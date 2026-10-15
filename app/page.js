@@ -9,7 +9,8 @@ const prompts = ["How far?", "What gear?", "When do I rest?", "Fuel?", "Can I ma
 const navGroups = [
   ["DRIVE", [["▶","Drive"],["♟","Co-Driver"],["➤","Navigation"],["▣","Truck Health"],["⚙","Under the Hood"],["⇅","Shift Coach"]]],
   ["WORK", [["▰","Dispatch & BOL"],["▤","Trip History"],["▥","Earnings & Stats"],["▧","Journal"],["▦","Company"],["★","Career"]]],
-  ["CONVOY", [["◉","Convoy Hub"],["♧","Convoy"],["🏆","Leaderboard"],["⌖","Convoy Radar"]]]
+  ["CONVOY", [["◉","Convoy Hub"],["♧","Convoy"],["🏆","Leaderboard"],["⌖","Convoy Radar"]]],
+  ["COMMUNITY", [["💡","Submit an Idea"]]]
 ];
 function replyFor(input, personality, telemetry) {
   const q = input.toLowerCase();
@@ -214,7 +215,7 @@ export default function Home() {
     {mobileNavOpen && <button type="button" className="sidebar-scrim" aria-label="Close navigation menu" onClick={()=>setMobileNavOpen(false)} />}
     <aside id="primary-sidebar" className={"sidebar "+(mobileNavOpen ? "mobile-open" : "")}>
       <div className="brand"><div className="brand-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="BC Truck Works logo" /></div><strong>BC TRUCK WORKS</strong><b>LIVE COMPANION</b><small className="version">V1.0 · DRIVER EDITION</small></div>
-      {navGroups.map(([group,items])=><section className="nav-group" key={group}><div className="nav-label">{group}</div>{items.map(([icon,label])=><button type="button" key={label} aria-current={activeNav===label?"page":undefined} className={"nav-item "+(activeNav===label?"active":"")} onClick={()=>{setActiveNav(label);setMobileNavOpen(false);const targets={"Drive":"dashboard-top","Co-Driver":"co-driver","Navigation":"status-notice","Truck Health":"truck-health","Under the Hood":"voice-settings","Shift Coach":"voice-commands","Career":"app-profiles"};const target=targets[label];if(target){setSelectedModule("");setNotice(label==="Drive"?"Dashboard selected.":label+" selected.");document.getElementById(target)?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});}else{setSelectedModule(label);setNotice(label+" selected.");}}}><span>{icon}</span>{label}</button>)}</section>)}
+      {navGroups.map(([group,items])=><section className="nav-group" key={group}><div className="nav-label">{group}</div>{items.map(([icon,label])=><button type="button" key={label} aria-current={activeNav===label?"page":undefined} className={"nav-item "+(activeNav===label?"active":"")} onClick={()=>{setActiveNav(label);setMobileNavOpen(false);if(label==="Submit an Idea"){window.location.href="/ideas";return;}const targets={"Drive":"dashboard-top","Co-Driver":"co-driver","Navigation":"status-notice","Truck Health":"truck-health","Under the Hood":"voice-settings","Shift Coach":"voice-commands","Career":"app-profiles"};const target=targets[label];if(target){setSelectedModule("");setNotice(label==="Drive"?"Dashboard selected.":label+" selected.");document.getElementById(target)?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});}else{setSelectedModule(label);setNotice(label+" selected.");}}}><span>{icon}</span>{label}</button>)}</section>)}
       <div className="sidebar-bottom"><b>DRIVE · BUILD · SUCCEED</b><span>Built for the road ahead.</span><span>BC Truck Works © 2026</span></div>
     </aside>
     <section className="workspace" id="dashboard-top">
