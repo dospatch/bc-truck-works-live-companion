@@ -95,6 +95,7 @@ export default function Home() {
   const [customProfiles,setCustomProfiles] = useState([]);
   const [profileInput,setProfileInput] = useState("");
   const [showProfiles,setShowProfiles] = useState(false);
+  const [mobileNavOpen,setMobileNavOpen] = useState(false);
   const [listening,setListening] = useState(false);
   const [clock,setClock] = useState("--:--");
   const [notice,setNotice] = useState("DEMO MODE · readings are placeholders until a compatible telemetry source is connected.");
@@ -206,9 +207,11 @@ export default function Home() {
   }
   const toggle=(checked,setter,label)=><input className="toggle" type="checkbox" checked={checked} onChange={e=>setter(e.target.checked)} aria-label={label}/>;
   return <main className="app-shell">
-    <aside className="sidebar">
+    <button type="button" className="mobile-nav-toggle" aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileNavOpen} aria-controls="primary-sidebar" onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen ? "✕ Close" : "☰ Menu"}</button>
+    {mobileNavOpen && <button type="button" className="sidebar-scrim" aria-label="Close navigation menu" onClick={()=>setMobileNavOpen(false)} />}
+    <aside id="primary-sidebar" className={"sidebar "+(mobileNavOpen ? "mobile-open" : "")}>
       <div className="brand"><div className="brand-mark"><img src="https://raw.githubusercontent.com/dospatch/bc-truck-works/main/web/public/bc-truck-works-logo.png" alt="BC Truck Works logo" /></div><strong>BC TRUCK WORKS</strong><b>LIVE COMPANION</b><small className="version">V1.0 · DRIVER EDITION</small></div>
-      {navGroups.map(([group,items])=><section className="nav-group" key={group}><div className="nav-label">{group}</div>{items.map(([icon,label])=><button type="button" key={label} className={"nav-item "+(label==="Co-Driver"?"active":"")} onClick={()=>label!=="Co-Driver"&&setNotice(label+" module is planned for a future release. Co-Driver is the active V1 module.")}><span>{icon}</span>{label}</button>)}</section>)}
+      {navGroups.map(([group,items])=><section className="nav-group" key={group}><div className="nav-label">{group}</div>{items.map(([icon,label])=><button type="button" key={label} className={"nav-item "+(label==="Co-Driver"?"active":"")} onClick={()=>{setMobileNavOpen(false);if(label!=="Co-Driver")setNotice(label+" module is planned for a future release. Co-Driver is the active V1 module.");}}><span>{icon}</span>{label}</button>)}</section>)}
       <div className="sidebar-bottom"><b>DRIVE · BUILD · SUCCEED</b><span>Built for the road ahead.</span><span>BC Truck Works © 2026</span></div>
     </aside>
     <section className="workspace">
