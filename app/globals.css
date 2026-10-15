@@ -82,3 +82,12 @@
 /* Desktop sidebar stays in view while the workspace scrolls. */
 .nav-item:focus-visible,.mobile-nav-toggle:focus-visible{outline:2px solid #65bcff;outline-offset:2px}
 #dashboard-top,#truck-health,#status-notice,#co-driver,#voice-commands,#voice-settings,#callouts,#app-profiles{scroll-margin-top:16px}
+
+
+/* Sidebar navigation: smooth, responsive, and clear when a module is not built yet. */
+html{scroll-behavior:smooth;scroll-padding-top:18px}
+.app-shell{align-items:start}
+.sidebar{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.nav-module-placeholder{margin:0 0 14px;scroll-margin-top:18px}
+.nav-module-placeholder p{line-height:1.7;max-width:760px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
