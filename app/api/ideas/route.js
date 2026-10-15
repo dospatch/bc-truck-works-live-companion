@@ -66,6 +66,8 @@ export async function POST(request) {
     target = new URL(webhook);
     if (target.protocol !== "https:" || !["discord.com", "discordapp.com"].includes(target.hostname)) throw new Error("Invalid Discord webhook host");
     target.searchParams.set("wait", "true");
+    // Discord Forum channels require a thread name when creating a new post.
+    target.searchParams.set("thread_name", title);
   } catch {
     return NextResponse.json({ error: "The Discord ideas destination is misconfigured." }, { status: 503 });
   }
