@@ -56,12 +56,13 @@ jobs:
           const body = (process.env.RELEASE_BODY || "A new version is now available. Open the release page for details.").trim().slice(0, 3900);
           const releaseUrl = process.env.RELEASE_URL;
           const hasRole = /^\d{17,20}$/.test(roleId);
+          const announcement = hasRole
+            ? `🚛 <@&${roleId}> — a new BC Truck Works Live Companion version is out!`
+            : "🚛 A new BC Truck Works Live Companion version is out!";
           const payload = {
             username: "BC Truck Works Releases",
             allowed_mentions: hasRole ? { parse: [], roles: [roleId] } : { parse: [] },
-            content: hasRole
-              ? `🚛 <@&${roleId}> — a new BC Truck Works Live Companion version is out!`
-              : "🚛 A new BC Truck Works Live Companion version is out!",
+            content: `${announcement}\n🔗 **Release link:** ${releaseUrl}`,
             embeds: [{
               title: `🚀 ${title}`,
               url: releaseUrl,
