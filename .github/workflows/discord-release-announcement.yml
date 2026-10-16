@@ -1,8 +1,6 @@
-name: Announce Live Companion releases in Discord
+name: Manually announce Live Companion releases in Discord
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       release_tag:
