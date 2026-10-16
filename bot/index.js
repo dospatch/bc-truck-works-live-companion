@@ -54,6 +54,7 @@ const commands = [
     .addStringOption(o => o.setName("details").setDescription("Route, game, rules, or extra details").setRequired(false).setMaxLength(1000)),
   new SlashCommandBuilder().setName("support").setDescription("Show how to get help with BC Truck Works"),
   new SlashCommandBuilder().setName("reportissue").setDescription("Open the issue-report menu and submit a problem report"),
+  new SlashCommandBuilder().setName("supportpanel").setDescription("Post the BC Truck Works help panel with options for members"),
   new SlashCommandBuilder().setName("suggest").setDescription("Submit an idea for BC Truck Works")
     .addStringOption(o => o.setName("idea").setDescription("Describe your suggestion").setRequired(true).setMaxLength(1000)),
   new SlashCommandBuilder().setName("updates").setDescription("Learn how to receive BC Truck Works update notifications"),
@@ -148,6 +149,29 @@ function formatUptime(ms) {
 
 async function handleCommand(interaction) {
   try {
+    if (interaction.isStringSelectMenu() && interaction.customId === "bc_helpdesk_category") {
+      const category = interaction.values[0];
+      const modal = new ModalBuilder()
+        .setCustomId(`bc_issue_modal:${category}`)
+        .setTitle("BC Truck Works Help Request");
+      const summary = new TextInputBuilder().setCustomId("issue_summary").setLabel("What do you need help with?")
+        .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(true)
+        .setPlaceholder("Short title for your request");
+      const details = new TextInputBuilder().setCustomId("issue_details").setLabel("Tell us more")
+        .setStyle(TextInputStyle.Paragraph).setMaxLength(1500).setRequired(true)
+        .setPlaceholder("Explain what you need, what happened, or what you suggest.");
+      const affected = new TextInputBuilder().setCustomId("issue_area").setLabel("Related area (optional)")
+        .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(false)
+        .setPlaceholder("Discord, website, ATS/ETS2, convoy, account");
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(summary),
+        new ActionRowBuilder().addComponents(details),
+        new ActionRowBuilder().addComponents(affected)
+      );
+      await interaction.showModal(modal);
+      return;
+    }
+
     if (interaction.isStringSelectMenu() && interaction.customId === "bc_issue_category") {
       const category = interaction.values[0];
       const modal = new ModalBuilder()
@@ -248,6 +272,28 @@ async function handleCommand(interaction) {
           { name: "3. Ask the community", value: "Post in the server's designated support channel so the team can help.", inline: false },
         );
       return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    if (interaction.commandName === "supportpanel") {
+      if (!interaction.inGuild()) return interaction.reply({ content: "Use this command inside your Discord server.", ephemeral: true });
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId("bc_helpdesk_category")
+        .setPlaceholder("Choose what you need help with")
+        .addOptions(
+          { label: "Get Support / Ask a Question", value: "General Support", description: "Ask for help or get an answer", emoji: "🆘" },
+          { label: "Report a Bug or Problem", value: "Bug / Problem", description: "Something is broken or not working", emoji: "🐛" },
+          { label: "Account / Access Help", value: "Account / Access", description: "Login, permissions, or access issues", emoji: "🔐" },
+          { label: "Discord Bot Help", value: "Discord Bot Help", description: "Commands, bot responses, or permissions", emoji: "🤖" },
+          { label: "ATS / ETS2 Companion Help", value: "ATS / ETS2 Companion", description: "Companion app or game connection", emoji: "🚛" },
+          { label: "Website / Dashboard Help", value: "Website / Dashboard", description: "Website or dashboard issues", emoji: "🌐" },
+          { label: "Submit a Suggestion", value: "Suggestion", description: "Share an idea to improve BC Truck Works", emoji: "💡" },
+          { label: "Other Request", value: "Other Request", description: "Something not listed above", emoji: "📩" }
+        );
+      const embed = new EmbedBuilder().setColor(0x43a6ff).setTitle("🚛 BC Truck Works — Help Center")
+        .setDescription("**Need something? Choose an option from the menu below.**\n\nA short form will open so you can explain your request. The team will receive it in the configured issue-report channel. Please never include passwords, bot tokens, or private keys.")
+        .addFields({ name: "Available options", value: "🆘 General support\n🐛 Bug reports\n🔐 Account/access help\n🤖 Discord bot help\n🚛 ATS/ETS2 companion help\n🌐 Website/dashboard help\n💡 Suggestions\n📩 Other requests" })
+        .setFooter({ text: "BC Truck Works Support · Test Panel" });
+      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
     }
 
     if (interaction.commandName === "reportissue") {
