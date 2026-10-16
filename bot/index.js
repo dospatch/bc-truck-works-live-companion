@@ -2,6 +2,8 @@ const {
   Client,
   Events,
   GatewayIntentBits,
+  ChannelType,
+  PermissionFlagsBits,
   EmbedBuilder,
   REST,
   Routes,
@@ -18,6 +20,7 @@ const channelId = process.env.DISCORD_CHANNEL_ID || "";
 const roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 const suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
+const ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
 const guildId = (process.env.DISCORD_GUILD_ID || "").trim();
 const repository = process.env.GITHUB_REPOSITORY || "dospatch/bc-truck-works-live-companion";
 const pollIntervalMs = Math.max(30, Number(process.env.RELEASE_POLL_SECONDS || 60)) * 1000;
@@ -55,6 +58,7 @@ const commands = [
   new SlashCommandBuilder().setName("support").setDescription("Show how to get help with BC Truck Works"),
   new SlashCommandBuilder().setName("reportissue").setDescription("Open the issue-report menu and submit a problem report"),
   new SlashCommandBuilder().setName("supportpanel").setDescription("Post the BC Truck Works help panel with options for members"),
+  new SlashCommandBuilder().setName("closeticket").setDescription("Close the ticket channel you are currently in"),
   new SlashCommandBuilder().setName("suggest").setDescription("Submit an idea for BC Truck Works")
     .addStringOption(o => o.setName("idea").setDescription("Describe your suggestion").setRequired(true).setMaxLength(1000)),
   new SlashCommandBuilder().setName("updates").setDescription("Learn how to receive BC Truck Works update notifications"),
@@ -201,24 +205,56 @@ async function handleCommand(interaction) {
       const summary = interaction.fields.getTextInputValue("issue_summary");
       const details = interaction.fields.getTextInputValue("issue_details");
       const affected = interaction.fields.getTextInputValue("issue_area") || "Not specified";
-      if (!issueChannelId) {
-        return interaction.editReply("Your report was not sent because the issue-report channel is not configured yet. Ask an administrator to set DISCORD_ISSUE_CHANNEL_ID in the bot host's environment variables.");
+      if (!interaction.guild) {
+        return interaction.editReply("Please submit ticket requests from inside the BC Truck Works Discord server.");
       }
-      const target = await client.channels.fetch(issueChannelId);
-      if (!target || !target.isTextBased() || typeof target.send !== "function") {
-        throw new Error("Issue report channel is invalid or inaccessible.");
+
+      const guild = interaction.guild;
+      const categoryName = `🎫 ${category}`.slice(0, 100);
+      let ticketCategory = guild.channels.cache.find(ch => ch.type === ChannelType.GuildCategory && ch.name === categoryName);
+      if (!ticketCategory) {
+        ticketCategory = await guild.channels.create({
+          name: categoryName,
+          type: ChannelType.GuildCategory,
+          reason: "Automatically created for BC Truck Works help tickets",
+        });
       }
-      const report = new EmbedBuilder().setColor(0xedaa30).setTitle("🛠️ New BC Truck Works Issue Report")
+
+      const safeUser = interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "member";
+      const ticketName = `ticket-${safeUser}`.slice(0, 90);
+      const overwrites = [
+        { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.EmbedLinks] },
+      ];
+      if (ticketStaffRoleId) {
+        overwrites.push({ id: ticketStaffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] });
+      }
+
+      const ticket = await guild.channels.create({
+        name: ticketName,
+        type: ChannelType.GuildText,
+        parent: ticketCategory.id,
+        topic: `BC Truck Works ticket | category: ${category} | opener: ${interaction.user.id}`.slice(0, 1024),
+        permissionOverwrites: overwrites,
+        reason: `Help ticket opened by ${interaction.user.tag}`,
+      });
+
+      const ticketEmbed = new EmbedBuilder().setColor(0x43a6ff).setTitle("🎫 BC Truck Works Support Ticket")
+        .setDescription("Your ticket has been created. Explain the issue here and a team member will help you.")
         .addFields(
           { name: "Category", value: category, inline: true },
-          { name: "Reported by", value: `${interaction.user.tag} (ID: ${interaction.user.id})`, inline: false },
+          { name: "Opened by", value: `<@${interaction.user.id}>`, inline: true },
           { name: "Summary", value: summary, inline: false },
           { name: "Details", value: details, inline: false },
-          { name: "Affected area", value: affected, inline: true },
-          { name: "Server", value: interaction.guild ? interaction.guild.name : "Direct message", inline: true }
-        ).setTimestamp();
-      await target.send({ embeds: [report], allowedMentions: { parse: [] } });
-      return interaction.editReply("Your issue report has been submitted to the BC Truck Works team. Thank you for reporting it.");
+          { name: "Related area", value: affected, inline: true }
+        ).setFooter({ text: "Use /closeticket when your request is resolved." }).setTimestamp();
+      await ticket.send({
+        content: ticketStaffRoleId ? `<@${interaction.user.id}> <@&${ticketStaffRoleId}> — a new support ticket is open.` : `<@${interaction.user.id}> — a new support ticket is open.`,
+        embeds: [ticketEmbed],
+        allowedMentions: ticketStaffRoleId ? { users: [interaction.user.id], roles: [ticketStaffRoleId] } : { users: [interaction.user.id], parse: [] },
+      });
+      return interaction.editReply(`Your ticket has been created: <#${ticket.id}>. Please continue the conversation in that private channel.`);
     }
 
     if (!interaction.isChatInputCommand()) return;
@@ -274,7 +310,7 @@ async function handleCommand(interaction) {
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
-    if (interaction.commandName === "supportpanel") {
+    if (interaction.commandName === "closeticket") {\n      if (!interaction.inGuild() || !interaction.channel || interaction.channel.type !== ChannelType.GuildText) {\n        return interaction.reply({ content: "Run this command inside the ticket channel you want to close.", ephemeral: true });\n      }\n      const topic = interaction.channel.topic || "";\n      if (!topic.includes("BC Truck Works ticket |")) {\n        return interaction.reply({ content: "This channel does not look like a BC Truck Works ticket, so I will not delete it.", ephemeral: true });\n      }\n      await interaction.reply({ content: "🔒 This ticket is being closed and the channel will be deleted in 5 seconds." });\n      setTimeout(() => interaction.channel.delete("BC Truck Works ticket closed").catch(err => console.error("Could not delete ticket channel:", err.message || err)), 5000);\n      return;\n    }\n\n    if (interaction.commandName === "supportpanel") {
       if (!interaction.inGuild()) return interaction.reply({ content: "Use this command inside your Discord server.", ephemeral: true });
       const menu = new StringSelectMenuBuilder()
         .setCustomId("bc_helpdesk_category")
