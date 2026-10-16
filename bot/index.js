@@ -50,6 +50,8 @@ const commands = [
   new SlashCommandBuilder().setName("suggest").setDescription("Submit an idea for BC Truck Works")
     .addStringOption(o => o.setName("idea").setDescription("Describe your suggestion").setRequired(true).setMaxLength(1000)),
   new SlashCommandBuilder().setName("updates").setDescription("Learn how to receive BC Truck Works update notifications"),
+  new SlashCommandBuilder().setName("channelcheck").setDescription("Check the bot's channel permissions in this server"),
+  new SlashCommandBuilder().setName("fixchannelperms").setDescription("Owner-only: grant the bot access to all text channels in this server"),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -204,6 +206,78 @@ async function handleCommand(interaction) {
         return interaction.reply({ content: "Thanks! Your suggestion has been submitted.", ephemeral: true });
       }
       return interaction.reply({ content: "Thanks for your suggestion! No suggestion channel is configured yet, so please post it in your server's suggestions channel: " + idea, ephemeral: true });
+    }
+
+    if (interaction.commandName === "channelcheck") {
+      if (!interaction.inGuild()) return interaction.reply({ content: "Use this command inside your Discord server.", ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const guild = interaction.guild;
+      const channels = await guild.channels.fetch();
+      const rows = [];
+      let inaccessible = 0;
+      for (const ch of channels.values()) {
+        if (!ch || !ch.isTextBased() || !ch.permissionsFor) continue;
+        const perms = ch.permissionsFor(client.user.id);
+        if (!perms || !perms.has("ViewChannel")) {
+          inaccessible++;
+          rows.push(`❌ #${ch.name}: cannot view`);
+          continue;
+        }
+        const missing = [];
+        if (!perms.has("SendMessages")) missing.push("Send Messages");
+        if (!perms.has("ReadMessageHistory")) missing.push("Read History");
+        if (!perms.has("EmbedLinks")) missing.push("Embed Links");
+        rows.push(missing.length ? `⚠️ #${ch.name}: missing ${missing.join(", ")}` : `✅ #${ch.name}: OK`);
+      }
+      const report = rows.length ? rows.join("\n") : "No text channels could be checked.";
+      const chunks = report.match(/[\s\S]{1,3500}/g) || [report];
+      const embed = new EmbedBuilder().setColor(inaccessible ? 0xed4245 : 0x43a6ff)
+        .setTitle("🔎 BC Truck Works Bot — Channel Permission Check")
+        .setDescription(chunks[0])
+        .addFields({ name: "Channels with no View Channel access", value: String(inaccessible), inline: true },
+                   { name: "Channels checked", value: String(rows.length), inline: true })
+        .setFooter({ text: "Private channels are included in this check; review the report before granting access." });
+      await interaction.editReply({ embeds: [embed] });
+      for (const chunk of chunks.slice(1)) await interaction.followUp({ content: chunk, ephemeral: true });
+      return;
+    }
+
+    if (interaction.commandName === "fixchannelperms") {
+      if (!interaction.inGuild()) return interaction.reply({ content: "Use this command inside your Discord server.", ephemeral: true });
+      if (interaction.user.id !== interaction.guild.ownerId) {
+        return interaction.reply({ content: "Only the server owner can run this repair command.", ephemeral: true });
+      }
+      await interaction.deferReply({ ephemeral: true });
+      const me = await interaction.guild.members.fetchMe();
+      if (!me.permissions.has("ManageChannels")) {
+        return interaction.editReply("I cannot repair channel permissions yet because my bot role is missing **Manage Channels**. In Server Settings → Roles, enable Manage Channels for the bot role, then run /fixchannelperms again. Do not share your bot token.");
+      }
+      const channels = await interaction.guild.channels.fetch();
+      let fixed = 0;
+      let skipped = 0;
+      const failures = [];
+      for (const ch of channels.values()) {
+        if (!ch || !ch.isTextBased() || !ch.permissionOverwrites) { skipped++; continue; }
+        try {
+          await ch.permissionOverwrites.edit(client.user.id, {
+            ViewChannel: true,
+            SendMessages: true,
+            ReadMessageHistory: true,
+            EmbedLinks: true,
+          }, { reason: "Server owner requested BC Truck Works Bot channel access repair" });
+          fixed++;
+        } catch (error) {
+          skipped++;
+          failures.push(`#${ch.name}: ${String(error.message || error).slice(0, 180)}`);
+        }
+      }
+      const result = new EmbedBuilder().setColor(failures.length ? 0xedaa30 : 0x43a6ff)
+        .setTitle("🛠️ Channel Permission Repair Results")
+        .setDescription(`Updated bot-specific permissions in **${fixed}** text channels. Skipped or failed: **${skipped}**.\n\nThe bot was granted View Channel, Send Messages, Read Message History, and Embed Links where Discord allowed it.`)
+        .setFooter({ text: "This does not grant permissions to other users or change slash-command integration restrictions." });
+      if (failures.length) result.addFields({ name: "Some channels could not be changed", value: failures.slice(0, 8).join("\n").slice(0, 1000) });
+      await interaction.editReply({ embeds: [result] });
+      return;
     }
 
     if (interaction.commandName === "updates") {
