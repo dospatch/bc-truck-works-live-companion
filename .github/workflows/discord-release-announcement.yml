@@ -62,7 +62,7 @@ jobs:
           const payload = {
             username: "BC Truck Works Releases",
             allowed_mentions: hasRole ? { parse: [], roles: [roleId] } : { parse: [] },
-            content: `${announcement}\n🔗 **Release link:** ${releaseUrl}`,
+            content: announcement,
             embeds: [{
               title: `🚀 ${title}`,
               url: releaseUrl,
@@ -70,7 +70,8 @@ jobs:
               color: 4436735,
               fields: [
                 { name: "Version", value: tag, inline: true },
-                { name: "Repository", value: process.env.REPOSITORY, inline: true }
+                { name: "Repository", value: process.env.REPOSITORY, inline: true },
+                { name: "Release link", value: `[Open ${tag}](${releaseUrl})`, inline: false }
               ],
               footer: { text: "BC Truck Works Live Companion · Release announcements" },
               timestamp: new Date().toISOString()
