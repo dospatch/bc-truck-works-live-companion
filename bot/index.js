@@ -6,12 +6,18 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require("discord.js");
 
 const token = process.env.DISCORD_TOKEN;
 const channelId = process.env.DISCORD_CHANNEL_ID || "";
 const roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 const suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
+const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 const guildId = (process.env.DISCORD_GUILD_ID || "").trim();
 const repository = process.env.GITHUB_REPOSITORY || "dospatch/bc-truck-works-live-companion";
 const pollIntervalMs = Math.max(30, Number(process.env.RELEASE_POLL_SECONDS || 60)) * 1000;
@@ -47,6 +53,7 @@ const commands = [
     .addStringOption(o => o.setName("meeting_point").setDescription("Starting location or server").setRequired(true).setMaxLength(150))
     .addStringOption(o => o.setName("details").setDescription("Route, game, rules, or extra details").setRequired(false).setMaxLength(1000)),
   new SlashCommandBuilder().setName("support").setDescription("Show how to get help with BC Truck Works"),
+  new SlashCommandBuilder().setName("reportissue").setDescription("Open the issue-report menu and submit a problem report"),
   new SlashCommandBuilder().setName("suggest").setDescription("Submit an idea for BC Truck Works")
     .addStringOption(o => o.setName("idea").setDescription("Describe your suggestion").setRequired(true).setMaxLength(1000)),
   new SlashCommandBuilder().setName("updates").setDescription("Learn how to receive BC Truck Works update notifications"),
@@ -140,8 +147,57 @@ function formatUptime(ms) {
 }
 
 async function handleCommand(interaction) {
-  if (!interaction.isChatInputCommand()) return;
   try {
+    if (interaction.isStringSelectMenu() && interaction.customId === "bc_issue_category") {
+      const category = interaction.values[0];
+      const modal = new ModalBuilder()
+        .setCustomId(`bc_issue_modal:${category}`)
+        .setTitle("Report a BC Truck Works Issue");
+      const summary = new TextInputBuilder().setCustomId("issue_summary").setLabel("Short issue summary")
+        .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(true)
+        .setPlaceholder("Example: Convoy command does not open");
+      const details = new TextInputBuilder().setCustomId("issue_details").setLabel("What happened? Include steps and error text")
+        .setStyle(TextInputStyle.Paragraph).setMaxLength(1500).setRequired(true)
+        .setPlaceholder("Describe what you tried and what you expected.");
+      const affected = new TextInputBuilder().setCustomId("issue_area").setLabel("Where did it happen? (optional)")
+        .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(false)
+        .setPlaceholder("Discord, website, desktop companion, ATS/ETS2");
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(summary),
+        new ActionRowBuilder().addComponents(details),
+        new ActionRowBuilder().addComponents(affected)
+      );
+      await interaction.showModal(modal);
+      return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId.startsWith("bc_issue_modal:")) {
+      await interaction.deferReply({ ephemeral: true });
+      const category = interaction.customId.slice("bc_issue_modal:".length);
+      const summary = interaction.fields.getTextInputValue("issue_summary");
+      const details = interaction.fields.getTextInputValue("issue_details");
+      const affected = interaction.fields.getTextInputValue("issue_area") || "Not specified";
+      if (!issueChannelId) {
+        return interaction.editReply("Your report was not sent because the issue-report channel is not configured yet. Ask an administrator to set DISCORD_ISSUE_CHANNEL_ID in the bot host's environment variables.");
+      }
+      const target = await client.channels.fetch(issueChannelId);
+      if (!target || !target.isTextBased() || typeof target.send !== "function") {
+        throw new Error("Issue report channel is invalid or inaccessible.");
+      }
+      const report = new EmbedBuilder().setColor(0xedaa30).setTitle("🛠️ New BC Truck Works Issue Report")
+        .addFields(
+          { name: "Category", value: category, inline: true },
+          { name: "Reported by", value: `${interaction.user.tag} (ID: ${interaction.user.id})`, inline: false },
+          { name: "Summary", value: summary, inline: false },
+          { name: "Details", value: details, inline: false },
+          { name: "Affected area", value: affected, inline: true },
+          { name: "Server", value: interaction.guild ? interaction.guild.name : "Direct message", inline: true }
+        ).setTimestamp();
+      await target.send({ embeds: [report], allowedMentions: { parse: [] } });
+      return interaction.editReply("Your issue report has been submitted to the BC Truck Works team. Thank you for reporting it.");
+    }
+
+    if (!interaction.isChatInputCommand()) return;
     if (interaction.commandName === "version") {
       await interaction.deferReply();
       const release = await getReleaseSafely();
@@ -192,6 +248,25 @@ async function handleCommand(interaction) {
           { name: "3. Ask the community", value: "Post in the server's designated support channel so the team can help.", inline: false },
         );
       return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    if (interaction.commandName === "reportissue") {
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId("bc_issue_category")
+        .setPlaceholder("Choose the type of issue you're reporting")
+        .addOptions(
+          { label: "Bug / Something is broken", value: "Bug / Something is broken", description: "A feature does not work as expected", emoji: "🐛" },
+          { label: "Login / Account", value: "Login / Account", description: "Sign-in, account, or access trouble", emoji: "🔐" },
+          { label: "Discord Bot / Commands", value: "Discord Bot / Commands", description: "Slash commands, bot responses, or permissions", emoji: "🤖" },
+          { label: "Website / Dashboard", value: "Website / Dashboard", description: "Website pages, dashboard, or display issues", emoji: "🌐" },
+          { label: "ATS / ETS2 Companion", value: "ATS / ETS2 Companion", description: "Telemetry or companion app issues", emoji: "🚛" },
+          { label: "Suggestion / Other", value: "Suggestion / Other", description: "An idea or another kind of issue", emoji: "💡" }
+        );
+      const row = new ActionRowBuilder().addComponents(menu);
+      const embed = new EmbedBuilder().setColor(0x43a6ff).setTitle("🛠️ Report an Issue")
+        .setDescription("Choose a category below. The next step opens a form where you can describe the problem. Please do not include passwords, bot tokens, or other secrets.")
+        .setFooter({ text: "BC Truck Works Support" });
+      return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
     }
 
     if (interaction.commandName === "suggest") {
