@@ -195,6 +195,8 @@ async function handleCommand(interaction) {
     }
 
     if (interaction.commandName === "suggest") {
+      // Acknowledge immediately so channel/API delays cannot trigger Discord's 3-second timeout.
+      await interaction.deferReply({ ephemeral: true });
       const idea = interaction.options.getString("idea", true);
       const embed = new EmbedBuilder().setColor(0x43a6ff).setTitle("💡 BC Truck Works Suggestion")
         .setDescription(idea).addFields({ name: "Submitted by", value: interaction.user.tag, inline: true })
@@ -203,9 +205,9 @@ async function handleCommand(interaction) {
         const target = await client.channels.fetch(suggestionChannelId);
         if (!target || !target.isTextBased() || typeof target.send !== "function") throw new Error("Suggestion channel is invalid.");
         await target.send({ embeds: [embed], allowedMentions: { parse: [] } });
-        return interaction.reply({ content: "Thanks! Your suggestion has been submitted.", ephemeral: true });
+        return interaction.editReply({ content: "Thanks! Your suggestion has been submitted." });
       }
-      return interaction.reply({ content: "Thanks for your suggestion! No suggestion channel is configured yet, so please post it in your server's suggestions channel: " + idea, ephemeral: true });
+      return interaction.editReply({ content: "Thanks for your suggestion! No suggestion channel is configured yet, so please post it in your server's suggestions channel: " + idea });
     }
 
     if (interaction.commandName === "channelcheck") {
