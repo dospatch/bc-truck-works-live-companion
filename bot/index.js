@@ -18,12 +18,12 @@ const {
 } = require("discord.js");
 
 const token = process.env.DISCORD_TOKEN;
-const channelId = process.env.DISCORD_CHANNEL_ID || "";
-const roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
+let channelId = process.env.DISCORD_CHANNEL_ID || "";
+let roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 const suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
-const ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
-const ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
+let ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
+let ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
 const guildId = (process.env.DISCORD_GUILD_ID || "").trim();
 const repository = process.env.GITHUB_REPOSITORY || "dospatch/bc-truck-works-live-companion";
 const pollIntervalMs = Math.max(30, Number(process.env.RELEASE_POLL_SECONDS || 60)) * 1000;
@@ -66,6 +66,7 @@ const commands = [
     .addStringOption(o => o.setName("date").setDescription("Date and time, including time zone").setRequired(true).setMaxLength(100))
     .addStringOption(o => o.setName("meeting_point").setDescription("Starting location or server").setRequired(true).setMaxLength(150))
     .addStringOption(o => o.setName("details").setDescription("Route, game, rules, or extra details").setRequired(false).setMaxLength(1000)),
+  new SlashCommandBuilder().setName("setupserver").setDescription("Create or update the BC Truck Works Discord server layout (server owner only)"),
   new SlashCommandBuilder().setName("support").setDescription("Show how to get help with BC Truck Works"),
   new SlashCommandBuilder().setName("reportissue").setDescription("Open the issue-report menu and submit a problem report"),
   new SlashCommandBuilder().setName("supportpanel").setDescription("Post the BC Truck Works help panel with options for members"),
@@ -357,6 +358,56 @@ async function handleCommand(interaction) {
     }
 
     if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName === "setupserver") {
+      if (!interaction.inGuild()) return interaction.reply({ content: "Use this command inside your Discord server.", ephemeral: true });
+      if (interaction.user.id !== interaction.guild.ownerId) return interaction.reply({ content: "Only the server owner can run /setupserver.", ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const guild = interaction.guild;
+      const me = await guild.members.fetchMe();
+      if (!me.permissions.has(PermissionFlagsBits.ManageChannels) || !me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+        return interaction.editReply("I need Manage Channels and Manage Roles permissions. Enable both for the bot role, then run /setupserver again.");
+      }
+      const category = async (name) => {
+        let ch = guild.channels.cache.find(x => x.type === ChannelType.GuildCategory && x.name.toLowerCase() === name.toLowerCase());
+        if (!ch) ch = await guild.channels.create({ name, type: ChannelType.GuildCategory, reason: "BC Truck Works server setup" });
+        return ch;
+      };
+      const textChannel = async (name, parent) => {
+        let ch = guild.channels.cache.find(x => x.type === ChannelType.GuildText && x.name.toLowerCase() === name.toLowerCase() && x.parentId === parent.id);
+        if (!ch) ch = await guild.channels.create({ name, type: ChannelType.GuildText, parent: parent.id, reason: "BC Truck Works server setup" });
+        return ch;
+      };
+      const role = async (name, color) => {
+        let item = guild.roles.cache.find(x => x.name.toLowerCase() === name.toLowerCase());
+        if (!item) item = await guild.roles.create({ name, color, reason: "BC Truck Works server setup" });
+        return item;
+      };
+      const community = await category("BC Truck Works");
+      const announcements = await textChannel("announcements", community);
+      const changelog = await textChannel("development-changelog", community);
+      const status = await textChannel("project-status", community);
+      const support = await textChannel("support", community);
+      const suggestions = await textChannel("suggestions", community);
+      const tickets = await category("BC Truck Works Tickets");
+      const updatesRole = await role("BC Truck Works Updates", 0x43a6ff);
+      const staffRole = await role("BC Truck Works Support", 0x57f287);
+      channelId = announcements.id;
+      roleId = updatesRole.id;
+      ticketCategoryId = tickets.id;
+      ticketStaffRoleId = staffRole.id;
+      const panel = async (ch, footer, title, description) => {
+        const recent = await ch.messages.fetch({ limit: 20 }).catch(() => null);
+        if (recent && recent.some(m => m.author.id === client.user.id && m.embeds.some(e => e.footer?.text === footer))) return;
+        await ch.send({ embeds: [new EmbedBuilder().setColor(0x43a6ff).setTitle(title).setDescription(description).setFooter({ text: footer })], allowedMentions: { parse: [] } });
+      };
+      await panel(announcements, "BC Truck Works · Server Setup", "🚛 BC Truck Works Updates", "Official announcements and published release notices. Members can opt into notifications with the BC Truck Works Updates role.");
+      await panel(changelog, "BC Truck Works · Changelog", "🧰 Development Changelog", "Track **Added**, **Improved**, **Fixed**, and **Planned** work. Planned features are not yet released.");
+      await panel(status, "BC Truck Works · Status", "📡 Project Status", "Use /status to check the bot and GitHub release monitor. [Repository](https://github.com/" + repository + ") · [Releases](https://github.com/" + repository + "/releases)");
+      await panel(support, "BC Truck Works · Support", "🛟 Get Support", "Use /supportpanel to open a private support ticket. Never share passwords, bot tokens, or private keys.");
+      await panel(suggestions, "BC Truck Works · Suggestions", "💡 Suggestions", "Use /suggest to submit an idea for BC Truck Works.");
+      return interaction.editReply("✅ Setup complete. Created or reused the standard channels, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nNote: these IDs are saved for this running process. For automatic persistence after restarts, keep the matching IDs in the hosting environment variables.");
+    }
+
     if (interaction.commandName === "version") {
       await interaction.deferReply();
       const release = await getReleaseSafely();
