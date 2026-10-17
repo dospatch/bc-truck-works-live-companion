@@ -152,18 +152,85 @@ async function handleCommand(interaction) {
   try {
     if (interaction.isStringSelectMenu() && interaction.customId === "bc_helpdesk_category") {
       const category = interaction.values[0];
+      const formSettings = {
+        "General Support": {
+          title: "General Support Request",
+          summaryLabel: "What is your question?",
+          summaryPlaceholder: "Briefly describe what you need help with",
+          detailsLabel: "Explain your question",
+          detailsPlaceholder: "Tell the team what you need help with and what you have tried.",
+          areaPlaceholder: "Optional: Discord, website, ATS/ETS2"
+        },
+        "Bug / Problem": {
+          title: "Report a Bug",
+          summaryLabel: "What is broken?",
+          summaryPlaceholder: "Short description of the bug",
+          detailsLabel: "What happened?",
+          detailsPlaceholder: "Include what you expected, what happened, and any error message.",
+          areaPlaceholder: "Where did the problem happen?"
+        },
+        "Account / Access": {
+          title: "Account and Access Help",
+          summaryLabel: "What can't you access?",
+          summaryPlaceholder: "Briefly describe the access problem",
+          detailsLabel: "Describe the access issue",
+          detailsPlaceholder: "Explain what you are trying to access. Never include passwords or codes.",
+          areaPlaceholder: "Account, role, website, or server"
+        },
+        "Discord Bot Help": {
+          title: "Discord Bot Help",
+          summaryLabel: "Which bot or command?",
+          summaryPlaceholder: "Name the bot or command",
+          detailsLabel: "What is the bot doing?",
+          detailsPlaceholder: "Explain what you tried and include any error message.",
+          areaPlaceholder: "Bot name or command"
+        },
+        "ATS / ETS2 Companion": {
+          title: "ATS / ETS2 Companion Help",
+          summaryLabel: "What needs help?",
+          summaryPlaceholder: "Briefly describe the companion issue",
+          detailsLabel: "Describe the game or app issue",
+          detailsPlaceholder: "Include your game, what you were doing, and any error message.",
+          areaPlaceholder: "ATS, ETS2, telemetry, or companion app"
+        },
+        "Website / Dashboard": {
+          title: "Website and Dashboard Help",
+          summaryLabel: "Which page has a problem?",
+          summaryPlaceholder: "Name the page or feature",
+          detailsLabel: "Describe the website issue",
+          detailsPlaceholder: "Explain what you clicked and what happened.",
+          areaPlaceholder: "Website page or dashboard"
+        },
+        "Suggestion": {
+          title: "Submit a Suggestion",
+          summaryLabel: "What's your idea?",
+          summaryPlaceholder: "Give your idea a short title",
+          detailsLabel: "Describe your suggestion",
+          detailsPlaceholder: "Explain your idea and how it could improve BC Truck Works.",
+          areaPlaceholder: "Which part of BC Truck Works?"
+        },
+        "Other Request": {
+          title: "Other Request",
+          summaryLabel: "What do you need?",
+          summaryPlaceholder: "Give your request a short title",
+          detailsLabel: "Tell us about your request",
+          detailsPlaceholder: "Explain what you need help with.",
+          areaPlaceholder: "Optional related area"
+        }
+      };
+      const settings = formSettings[category] || formSettings["Other Request"];
       const modal = new ModalBuilder()
         .setCustomId(`bc_issue_modal:${category}`)
-        .setTitle("BC Truck Works Help Request");
-      const summary = new TextInputBuilder().setCustomId("issue_summary").setLabel("What do you need help with?")
+        .setTitle(settings.title.slice(0, 45));
+      const summary = new TextInputBuilder().setCustomId("issue_summary").setLabel(settings.summaryLabel)
         .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(true)
-        .setPlaceholder("Short title for your request");
-      const details = new TextInputBuilder().setCustomId("issue_details").setLabel("Tell us more")
+        .setPlaceholder(settings.summaryPlaceholder);
+      const details = new TextInputBuilder().setCustomId("issue_details").setLabel(settings.detailsLabel)
         .setStyle(TextInputStyle.Paragraph).setMaxLength(1500).setRequired(true)
-        .setPlaceholder("Explain what you need, what happened, or what you suggest.");
+        .setPlaceholder(settings.detailsPlaceholder);
       const affected = new TextInputBuilder().setCustomId("issue_area").setLabel("Related area (optional)")
         .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(false)
-        .setPlaceholder("Discord, website, ATS/ETS2, convoy, account");
+        .setPlaceholder(settings.areaPlaceholder);
       modal.addComponents(
         new ActionRowBuilder().addComponents(summary),
         new ActionRowBuilder().addComponents(details),
