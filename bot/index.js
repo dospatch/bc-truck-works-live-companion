@@ -540,8 +540,18 @@ async function handleCommand(interaction) {
         .setFooter({ text: `User ID: ${interaction.user.id}` }).setTimestamp();
       if (suggestionChannelId) {
         const target = await client.channels.fetch(suggestionChannelId);
-        if (!target || !target.isTextBased() || typeof target.send !== "function") throw new Error("Suggestion channel is invalid.");
-        await target.send({ embeds: [embed], allowedMentions: { parse: [] } });
+        if (!target || !target.isTextBased()) throw new Error("Suggestion channel is invalid.");
+        if (target.type === ChannelType.GuildForum) {
+          await target.threads.create({
+            name: idea.replace(/\s+/g, " ").slice(0, 100) || "New suggestion",
+            message: { embeds: [embed], allowedMentions: { parse: [] } },
+            reason: "BC Truck Works suggestion submitted",
+          });
+        } else if (typeof target.send === "function") {
+          await target.send({ embeds: [embed], allowedMentions: { parse: [] } });
+        } else {
+          throw new Error("Suggestion channel cannot accept messages.");
+        }
         return interaction.editReply({ content: "Thanks! Your suggestion has been submitted." });
       }
       return interaction.editReply({ content: "Thanks for your suggestion! No suggestion channel is configured yet, so please post it in your server's suggestions channel: " + idea });
