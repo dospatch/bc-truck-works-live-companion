@@ -20,7 +20,7 @@ const {
 const token = process.env.DISCORD_TOKEN;
 let channelId = process.env.DISCORD_CHANNEL_ID || "";
 let roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
-const suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
+let suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 let ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
 let ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
@@ -377,6 +377,31 @@ async function handleCommand(interaction) {
         if (!ch) ch = await guild.channels.create({ name, type: ChannelType.GuildText, parent: parent.id, reason: "BC Truck Works server setup" });
         return ch;
       };
+      const forumChannel = async (name, parent, topic) => {
+        let ch = guild.channels.cache.find(x => x.type === ChannelType.GuildForum && x.name.toLowerCase() === name.toLowerCase() && x.parentId === parent.id);
+        if (!ch) ch = await guild.channels.create({
+          name, type: ChannelType.GuildForum, parent: parent.id, topic,
+          availableTags: [
+            { name: "Open", moderated: false, emoji: { name: "🟢" } },
+            { name: "In Progress", moderated: false, emoji: { name: "🛠️" } },
+            { name: "Resolved", moderated: false, emoji: { name: "✅" } },
+          ],
+          reason: "BC Truck Works forum setup",
+        });
+        return ch;
+      };
+      const forumWelcomePost = async (forum, title, body, marker) => {
+        const active = await forum.threads.fetchActive().catch(() => null);
+        const archived = await forum.threads.fetchArchived({ type: "public", limit: 50 }).catch(() => null);
+        const threads = [...(active?.threads?.values() || []), ...(archived?.threads?.values() || [])];
+        if (!threads.some(thread => thread.name === title)) {
+          await forum.threads.create({
+            name: title,
+            message: { embeds: [new EmbedBuilder().setColor(0x43a6ff).setDescription(body).setFooter({ text: marker })] },
+            reason: "BC Truck Works forum instructions",
+          });
+        }
+      };
       const role = async (name, color) => {
         let item = guild.roles.cache.find(x => x.name.toLowerCase() === name.toLowerCase());
         if (!item) item = await guild.roles.create({ name, color, reason: "BC Truck Works server setup" });
@@ -387,7 +412,9 @@ async function handleCommand(interaction) {
       const changelog = await textChannel("development-changelog", community);
       const status = await textChannel("project-status", community);
       const support = await textChannel("support", community);
-      const suggestions = await textChannel("suggestions", community);
+      const bugReports = await forumChannel("bug-reports", community, "Report bugs and problems with BC Truck Works. One post per issue; include steps to reproduce and expected vs actual behavior.");
+      const modRequests = await forumChannel("mod-requests", community, "Request or discuss mods and mod-related compatibility for ATS/ETS2 and BC Truck Works.");
+      const suggestions = await forumChannel("suggestions", community, "Share ideas for improving BC Truck Works. One idea per post; explain the benefit.");
       const tickets = await category("BC Truck Works Tickets");
       const updatesRole = await role("BC Truck Works Updates", 0x43a6ff);
       const staffRole = await role("BC Truck Works Support", 0x57f287);
@@ -395,6 +422,7 @@ async function handleCommand(interaction) {
       roleId = updatesRole.id;
       ticketCategoryId = tickets.id;
       ticketStaffRoleId = staffRole.id;
+      suggestionChannelId = suggestions.id;
       const panel = async (ch, footer, title, description) => {
         const recent = await ch.messages.fetch({ limit: 20 }).catch(() => null);
         if (recent && recent.some(m => m.author.id === client.user.id && m.embeds.some(e => e.footer?.text === footer))) return;
@@ -404,8 +432,10 @@ async function handleCommand(interaction) {
       await panel(changelog, "BC Truck Works · Changelog", "🧰 Development Changelog", "Track **Added**, **Improved**, **Fixed**, and **Planned** work. Planned features are not yet released.");
       await panel(status, "BC Truck Works · Status", "📡 Project Status", "Use /status to check the bot and GitHub release monitor. [Repository](https://github.com/" + repository + ") · [Releases](https://github.com/" + repository + "/releases)");
       await panel(support, "BC Truck Works · Support", "🛟 Get Support", "Use /supportpanel to open a private support ticket. Never share passwords, bot tokens, or private keys.");
-      await panel(suggestions, "BC Truck Works · Suggestions", "💡 Suggestions", "Use /suggest to submit an idea for BC Truck Works.");
-      return interaction.editReply("✅ Setup complete. Created or reused the standard channels, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nNote: these IDs are saved for this running process. For automatic persistence after restarts, keep the matching IDs in the hosting environment variables.");
+      await forumWelcomePost(bugReports, "📌 How to Report a Bug", "Create one post per bug. Include the affected feature, steps to reproduce, what you expected, what happened, and safe error details. Never post passwords, tokens, or private information.", "BC Truck Works · Bug Reports Guide");
+      await forumWelcomePost(modRequests, "📌 Mod Requests & Compatibility", "Create one post per mod or mod-related question. Include the game (ATS or ETS2), mod name/version, game version, and what you need help with. Use trusted download sources.", "BC Truck Works · Mod Requests Guide");
+      await forumWelcomePost(suggestions, "📌 How to Submit Suggestions", "Create one post per idea. Explain what you would like added or changed and how it would help the community. Use replies to discuss the idea.", "BC Truck Works · Suggestions Guide");
+      return interaction.editReply("✅ Setup complete. Created or reused the standard channels, three separate forums, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, bugReports, modRequests, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nForum channels: #bug-reports, #mod-requests, and #suggestions. IDs are saved for this running process; configure hosting environment variables for persistence after restarts.");
     }
 
     if (interaction.commandName === "version") {
