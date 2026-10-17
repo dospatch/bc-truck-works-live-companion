@@ -11,6 +11,10 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  ChannelType,
+  PermissionFlagsBits,
+  ButtonBuilder,
+  ButtonStyle,
 } = require("discord.js");
 
 const token = process.env.DISCORD_TOKEN;
@@ -19,6 +23,7 @@ const roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 const suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 const ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
+const ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
 const guildId = (process.env.DISCORD_GUILD_ID || "").trim();
 const repository = process.env.GITHUB_REPOSITORY || "dospatch/bc-truck-works-live-companion";
 const pollIntervalMs = Math.max(30, Number(process.env.RELEASE_POLL_SECONDS || 60)) * 1000;
@@ -38,6 +43,14 @@ if (roleId && !/^\d{17,20}$/.test(roleId)) {
 }
 if (suggestionChannelId && !/^\d{17,20}$/.test(suggestionChannelId)) {
   console.error("DISCORD_SUGGESTION_CHANNEL_ID must be a numeric channel ID or left blank.");
+  process.exit(1);
+}
+if (ticketCategoryId && !/^\d{17,20}$/.test(ticketCategoryId)) {
+  console.error("DISCORD_TICKET_CATEGORY_ID must be a numeric Discord category ID or left blank.");
+  process.exit(1);
+}
+if (ticketStaffRoleId && !/^\d{17,20}$/.test(ticketStaffRoleId)) {
+  console.error("DISCORD_TICKET_STAFF_ROLE_ID must be a numeric Discord role ID or left blank.");
   process.exit(1);
 }
 if (guildId && !/^\d{17,20}$/.test(guildId)) {
@@ -263,6 +276,23 @@ async function handleCommand(interaction) {
       return;
     }
 
+    if (interaction.isButton() && interaction.customId === "bc_ticket_close") {
+      await interaction.deferReply({ ephemeral: true });
+      if (!interaction.guild || !interaction.channel || interaction.channel.type !== ChannelType.GuildText) {
+        return interaction.editReply("This close button can only be used inside a ticket channel.");
+      }
+      const isStaff = ticketStaffRoleId && interaction.member && interaction.member.roles && interaction.member.roles.cache && interaction.member.roles.cache.has(ticketStaffRoleId);
+      const isOpener = Boolean(interaction.channel.topic && interaction.channel.topic.includes(`(${interaction.user.id})`));
+      const isManager = interaction.memberPermissions && interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels);
+      if (!isStaff && !isOpener && !isManager) {
+        return interaction.editReply("Only the ticket opener or support staff can close this ticket.");
+      }
+      await interaction.editReply("Ticket closed. This channel will be deleted in 10 seconds.");
+      await interaction.channel.send({ content: `🔒 Ticket closed by <@${interaction.user.id}>. This channel will be deleted in 10 seconds.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
+      setTimeout(() => interaction.channel.delete("BC Truck Works support ticket closed").catch(error => console.error("Could not delete closed ticket:", error.message || error)), 10000);
+      return;
+    }
+
     if (interaction.isModalSubmit() && interaction.customId.startsWith("bc_issue_modal:")) {
       await interaction.deferReply({ ephemeral: true });
       const category = interaction.customId.slice("bc_issue_modal:".length);
@@ -273,33 +303,57 @@ async function handleCommand(interaction) {
         return interaction.editReply("Please submit help requests from inside the BC Truck Works Discord server.");
       }
 
-      const targetId = category === "Suggestion" && suggestionChannelId ? suggestionChannelId : issueChannelId;
-      if (!targetId) {
-        return interaction.editReply("Your request was not sent because the support channel is not configured yet. Please ask a server moderator to set DISCORD_ISSUE_CHANNEL_ID in the bot host.");
+      if (!ticketCategoryId) {
+        return interaction.editReply("Tickets are not configured yet. Please ask a server moderator to set DISCORD_TICKET_CATEGORY_ID to the Discord category ID where tickets should be created.");
       }
-      const target = await client.channels.fetch(targetId);
-      if (!target || !target.isTextBased() || typeof target.send !== "function") {
-        return interaction.editReply("I couldn't find the configured support channel. Please ask a server moderator to check DISCORD_ISSUE_CHANNEL_ID.");
+      const parentCategory = await interaction.guild.channels.fetch(ticketCategoryId).catch(() => null);
+      if (!parentCategory || parentCategory.type !== ChannelType.GuildCategory) {
+        return interaction.editReply("The configured ticket category could not be found. Ask a moderator to check DISCORD_TICKET_CATEGORY_ID.");
       }
 
+      const safeCategory = category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 18) || "support";
+      const safeUser = (interaction.user.username || "member").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20) || "member";
+      const channelName = `ticket-${safeCategory}-${safeUser}`.slice(0, 90);
+      const overwrites = [
+        { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.EmbedLinks] },
+      ];
+      if (ticketStaffRoleId) {
+        overwrites.push({ id: ticketStaffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] });
+      }
+
+      const ticketChannel = await interaction.guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: ticketCategoryId,
+        topic: `BC Truck Works support ticket | Category: ${category} | Opened by ${interaction.user.tag} (${interaction.user.id})`,
+        permissionOverwrites: overwrites,
+        reason: `Support ticket opened by ${interaction.user.tag}`,
+      });
+
       const requestEmbed = new EmbedBuilder().setColor(0x43a6ff)
-        .setTitle(category === "Suggestion" ? "💡 BC Truck Works Suggestion" : "🆘 BC Truck Works Help Request")
+        .setTitle(category === "Suggestion" ? "💡 BC Truck Works Suggestion Ticket" : "🆘 BC Truck Works Support Ticket")
+        .setDescription("Please keep all discussion about this request in this channel. Do not share passwords, bot tokens, or private keys.")
         .addFields(
           { name: "Category", value: category, inline: true },
-          { name: "Submitted by", value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: false },
+          { name: "Opened by", value: `<@${interaction.user.id}>`, inline: true },
           { name: "Summary", value: summary, inline: false },
           { name: "Details", value: details, inline: false },
           { name: "Related area", value: affected, inline: true }
         )
         .setFooter({ text: `User ID: ${interaction.user.id} · BC Truck Works Support` })
         .setTimestamp();
-
-      await target.send({
-        content: ticketStaffRoleId ? `🔔 <@&${ticketStaffRoleId}> — a new ${category.toLowerCase()} request needs attention.` : `🆘 A new ${category.toLowerCase()} request needs attention.`,
+      const closeButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒")
+      );
+      await ticketChannel.send({
+        content: ticketStaffRoleId ? `Welcome <@${interaction.user.id}> — <@&${ticketStaffRoleId}>, a new ticket needs attention.` : `Welcome <@${interaction.user.id}> — a new support ticket has been opened.`,
         embeds: [requestEmbed],
-        allowedMentions: ticketStaffRoleId ? { parse: [], roles: [ticketStaffRoleId] } : { parse: [] },
+        components: [closeButton],
+        allowedMentions: ticketStaffRoleId ? { parse: [], users: [interaction.user.id], roles: [ticketStaffRoleId] } : { parse: [], users: [interaction.user.id] },
       });
-      return interaction.editReply("Thanks! Your request has been posted in the support channel and the support team has been notified.");
+      return interaction.editReply(`Your ticket has been created: <#${ticketChannel.id}>. Please continue the conversation there.`);
     }
 
     if (!interaction.isChatInputCommand()) return;
