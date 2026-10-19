@@ -50,7 +50,7 @@ npm run dev
 
 ## Windows desktop installer
 
-The Windows installer workflow runs on pushes to `main` and tags starting with `v`.
+The Windows installer workflow runs on pushes to `main` and tags starting with `v`. A version tag builds the Windows installer and publishes GitHub Release assets plus `latest.yml` updater metadata. Packaged Windows desktop builds check GitHub Releases for stable updates; downloads start automatically, and installation can be started immediately or applied when the app quits.
 
 1. Open the [Windows installer workflow](https://github.com/dospatch/bc-truck-works-live-companion/actions/workflows/windows-installer.yml).
 2. Open a successful run and download the `BC-Truck-Works-Companion-Windows-Installer` artifact.
@@ -63,6 +63,20 @@ npx electron-builder --win nsis
 ```
 
 The installer is produced in `release/`. Use GitHub Actions or a Windows PC to build the Windows installer; Codespaces is a Linux environment.
+
+### Publish a desktop update
+
+1. Update `version` in `package.json` to the next semantic version (for example `1.0.1`).
+2. Commit and push the changes to `main`; this validates/builds the installer artifact but does not publish a stable release.
+3. Create and push a matching version tag, such as `v1.0.1`, pointing at that commit: `git tag v1.0.1` then `git push origin v1.0.1`.
+4. Wait for the [Windows installer workflow](https://github.com/dospatch/bc-truck-works-live-companion/actions/workflows/windows-installer.yml) to pass. The workflow publishes the installer and updater metadata to the GitHub Release.
+5. Test the update on a Windows machine with an older installed version before announcing the release.
+
+The desktop updater is enabled only in packaged Windows builds. It checks stable GitHub Releases and downloads updates automatically. When an update is ready, the app offers a restart/install action; choosing Later defers installation until the app quits. User data, including the telemetry pairing file, is stored in Electron's per-user data directory rather than the install directory. Do not publish a release until the Windows workflow and an upgrade test pass.
+
+### Website deployment
+
+The website and desktop bundle are separate deployment targets. To deploy the website automatically on pushes to `main`, connect the `dospatch/bc-truck-works-live-companion` repository to your hosting project (for example, Vercel) and set the production branch to `main`. Verify the project root is the repository root, the build command is `npm run build`, and the framework preset is Next.js. Configure required environment variables in the hosting dashboard for Production and any Preview environment you use. A GitHub push only deploys the website automatically if that hosting integration is connected and enabled; this repository does not currently contain a separate website deployment workflow.
 
 ## Environment variables
 
