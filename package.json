@@ -22,7 +22,8 @@
     "styled-jsx": "^5.1.6",
     "@vercel/analytics": "^1.5.0",
     "trucksim-telemetry": "^1.0.0",
-    "discord.js": "^14.19.3"
+    "discord.js": "^14.19.3",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "electron": "^37.0.0",
@@ -85,6 +86,14 @@
         "filter": [
           "**/*"
         ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "dospatch",
+        "repo": "bc-truck-works-live-companion",
+        "releaseType": "release"
       }
     ]
   }
