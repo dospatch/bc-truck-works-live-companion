@@ -19,6 +19,7 @@ const {
 
 const token = process.env.DISCORD_TOKEN;
 let channelId = process.env.DISCORD_CHANNEL_ID || "";
+let changelogChannelId = (process.env.DISCORD_CHANGELOG_CHANNEL_ID || "").trim();
 let roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 let suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
@@ -115,15 +116,16 @@ async function checkForRelease() {
     }
     if (release.id === lastSeenReleaseId) return;
 
-    if (!channelId) {
-      console.warn("New release detected but DISCORD_CHANNEL_ID is not configured; set it to enable automatic announcements.");
+    const targetChannelId = changelogChannelId || channelId;
+    if (!targetChannelId) {
+      console.warn("New release detected but no changelog/announcement channel is configured. Run /setupserver or set DISCORD_CHANGELOG_CHANNEL_ID.");
       lastSeenReleaseId = release.id;
       latestReleaseCache = release;
       return;
     }
-    const channel = await client.channels.fetch(channelId);
+    const channel = await client.channels.fetch(targetChannelId);
     if (!channel || !channel.isTextBased() || typeof channel.send !== "function") {
-      throw new Error("The configured release channel was not found or is not a text channel.");
+      throw new Error("The configured changelog/release channel was not found or is not a text channel.");
     }
 
     const tag = release.tag_name || "New release";
@@ -136,17 +138,17 @@ async function checkForRelease() {
         { name: "Repository", value: repository, inline: true },
         { name: "Release link", value: `[Open ${tag}](${release.html_url})`, inline: false },
       )
-      .setFooter({ text: "BC Truck Works Live Companion · Release announcements" })
+      .setFooter({ text: "BC Truck Works · Development Changelog · Published release" })
       .setTimestamp(release.published_at ? new Date(release.published_at) : new Date());
 
     await channel.send({
-      content: roleId ? `🚛 <@&${roleId}> — a new BC Truck Works Live Companion version is out!` : "🚛 A new BC Truck Works Live Companion version is out!",
+      content: roleId ? `🧰 <@&${roleId}> — a new BC Truck Works release is published!` : "🧰 **New BC Truck Works release published** — the details are below.",
       embeds: [embed],
       allowedMentions: roleId ? { parse: [], roles: [roleId] } : { parse: [] },
     });
     lastSeenReleaseId = release.id;
     latestReleaseCache = release;
-    console.log(`Posted Discord announcement for ${tag}.`);
+    console.log(`Posted changelog release entry for ${tag}.`);
   } catch (error) {
     console.error("Release check failed:", error.message || error);
   } finally {
@@ -419,6 +421,7 @@ async function handleCommand(interaction) {
       const updatesRole = await role("BC Truck Works Updates", 0x43a6ff);
       const staffRole = await role("BC Truck Works Support", 0x57f287);
       channelId = announcements.id;
+      changelogChannelId = changelog.id;
       roleId = updatesRole.id;
       ticketCategoryId = tickets.id;
       ticketStaffRoleId = staffRole.id;
@@ -429,7 +432,26 @@ async function handleCommand(interaction) {
         await ch.send({ embeds: [new EmbedBuilder().setColor(0x43a6ff).setTitle(title).setDescription(description).setFooter({ text: footer })], allowedMentions: { parse: [] } });
       };
       await panel(announcements, "BC Truck Works · Server Setup", "🚛 BC Truck Works Updates", "Official announcements and published release notices. Members can opt into notifications with the BC Truck Works Updates role.");
-      await panel(changelog, "BC Truck Works · Changelog", "🧰 Development Changelog", "Track **Added**, **Improved**, **Fixed**, and **Planned** work. Planned features are not yet released.");
+      await panel(changelog, "BC Truck Works · Changelog", "🧰 Development Changelog", [
+        "Welcome to the official **BC Truck Works Development Changelog**.",
+        "",
+        "This channel records real updates to the BC Truck Works Live Companion and related project features. New published GitHub releases will be posted here automatically.",
+        "",
+        "🟢 **Added** — new commands, features, tools, integrations, and gameplay or companion capabilities.",
+        "🔧 **Improved** — usability, performance, reliability, accessibility, documentation, and existing workflows.",
+        "🐛 **Fixed** — confirmed bugs, errors, crashes, broken commands, and other corrected issues.",
+        "🔒 **Security & Reliability** — permission checks, configuration validation, safer handling, and stability improvements.",
+        "🧰 **Maintenance** — dependency updates, code cleanup, infrastructure work, and compatibility updates.",
+        "📚 **Documentation** — setup instructions, guides, configuration notes, and troubleshooting improvements.",
+        "🧪 **Testing** — validation, regression checks, and test coverage improvements.",
+        "📅 **Planned** — possible or in-progress work that has **not** shipped yet. Planned items are not promises or released features.",
+        "",
+        "**Release notes are the source of truth.** Each automatic release post includes the published version, GitHub release notes, and a link to the release page. If a feature is marked Planned, wait for a published release before treating it as available.",
+        "",
+        "Have an idea or found a problem? Use **#suggestions** for ideas, **#bug-reports** for confirmed issues, or **#mod-requests** for ATS/ETS2 mod requests. Use private support tickets for account-specific or sensitive help.",
+        "",
+        "Serious RP • Realism • Community Driven — BC Truck Works"
+      ].join("\n"));
       await panel(status, "BC Truck Works · Status", "📡 Project Status", "Use /status to check the bot and GitHub release monitor. [Repository](https://github.com/" + repository + ") · [Releases](https://github.com/" + repository + "/releases)");
       await panel(support, "BC Truck Works · Support", "🛟 Get Support", "Use /supportpanel to open a private support ticket. Never share passwords, bot tokens, or private keys.");
       await forumWelcomePost(bugReports, "📌 How to Report a Bug", "Create one post per bug. Include the affected feature, steps to reproduce, what you expected, what happened, and safe error details. Never post passwords, tokens, or private information.", "BC Truck Works · Bug Reports Guide");
