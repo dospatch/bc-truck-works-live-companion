@@ -433,6 +433,7 @@ async function handleCommand(interaction) {
       const changelog = await textChannel("development-changelog", community);
       const status = await textChannel("project-status", community);
       const support = await textChannel("support", community);
+      const truckingIdeas = await textChannel("trucking-ideas", community);
       const bugReports = await forumChannel("bug-reports", community, "Report bugs and problems with BC Truck Works. One post per issue; include steps to reproduce and expected vs actual behavior.");
       const modRequests = await forumChannel("mod-requests", community, "Request or discuss mods and mod-related compatibility for ATS/ETS2 and BC Truck Works.");
       const suggestions = await forumChannel("suggestions", community, "Share ideas for improving BC Truck Works. One idea per post; explain the benefit.");
@@ -485,6 +486,7 @@ async function handleCommand(interaction) {
       ].join("\n"));
       await panel(status, "BC Truck Works · Status", "📡 Project Status", "Use /status to check the bot and GitHub release monitor. [Repository](https://github.com/" + repository + ") · [Releases](https://github.com/" + repository + "/releases)");
       await panel(support, "BC Truck Works · Support", "🛟 Get Support", "Use /supportpanel to open a private support ticket. Never share passwords, bot tokens, or private keys.");
+      await panel(truckingIdeas, "BC Truck Works · Trucking Ideas", "🚛 Trucking Ideas", "Share ideas for trucking routes, convoy events, truck and trailer themes, paint jobs, community challenges, and improvements for BC Truck Works. Please keep one idea per message and be respectful.");
       await forumWelcomePost(bugReports, "📌 How to Report a Bug", [
         "## 🐛 BC Truck Works · Bug Reports Guide",
         "Use this forum to report bugs, crashes, errors, broken commands, or features that do not work as expected. Clear reports help the team understand the problem and try to reproduce it.",
@@ -577,7 +579,7 @@ async function handleCommand(interaction) {
         "",
         "Thank you for helping shape BC Truck Works. Clear ideas and respectful discussion help the project focus on changes that provide real value to the community."
       ].join("\n"), "BC Truck Works · Suggestions Guide");
-      return interaction.editReply("✅ Setup complete. Created or reused the standard channels, three separate forums, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, bugReports, modRequests, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nForum channels: #bug-reports, #mod-requests, and #suggestions. IDs are saved for this running process; configure hosting environment variables for persistence after restarts.");
+      return interaction.editReply("✅ Setup complete. Created or reused the standard channels, three separate forums, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, truckingIdeas, bugReports, modRequests, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nForum channels: #bug-reports, #mod-requests, and #suggestions. IDs are saved for this running process; configure hosting environment variables for persistence after restarts.");
     }
 
     if (interaction.commandName === "version") {
