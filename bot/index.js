@@ -130,20 +130,30 @@ async function checkForRelease() {
 
     const tag = release.tag_name || "New release";
     const title = (release.name || tag).slice(0, 250);
-    const notes = (release.body || "A new version is available. Open the release page for details.").slice(0, 3800);
-    const embed = new EmbedBuilder().setColor(0x43a6ff).setTitle(`🚀 ${title}`)
-      .setURL(release.html_url).setDescription(notes)
+    const releaseUrl = release.html_url || `https://github.com/${repository}/releases`;
+    const rawNotes = (release.body || "No release notes were provided. Open the release page for details.").trim();
+    const noteChunks = rawNotes.match(/[\s\S]{1,3900}/g) || ["No release notes were provided. Open the release page for details."];
+    const embeds = [new EmbedBuilder().setColor(0x43a6ff).setTitle(`🚀 ${title}`)
+      .setURL(releaseUrl).setDescription(noteChunks[0])
       .addFields(
         { name: "Version", value: tag.slice(0, 1024), inline: true },
-        { name: "Repository", value: repository, inline: true },
-        { name: "Release link", value: `[Open ${tag}](${release.html_url})`, inline: false },
+        { name: "Repository", value: repository.slice(0, 1024), inline: true },
+        { name: "Release link", value: `[Open ${tag}](${releaseUrl})`, inline: false },
       )
       .setFooter({ text: "BC Truck Works · Development Changelog · Published release" })
-      .setTimestamp(release.published_at ? new Date(release.published_at) : new Date());
+      .setTimestamp(release.published_at ? new Date(release.published_at) : new Date())];
+    // Discord permits 10 embeds per message. Include up to 10 chunks and link to GitHub for any remainder.
+    for (const chunk of noteChunks.slice(1, 10)) {
+      embeds.push(new EmbedBuilder().setColor(0x43a6ff).setTitle(`🧰 ${title} — Release Notes (continued)`)
+        .setURL(releaseUrl).setDescription(chunk).setFooter({ text: `Version ${tag} · BC Truck Works Changelog` }));
+    }
+    if (noteChunks.length > 10) {
+      embeds[9].setDescription(`${noteChunks[9]}\n\n⚠️ Release notes continue on GitHub. Open the release link above to read the full notes.`.slice(0, 4096));
+    }
 
     await channel.send({
       content: roleId ? `🧰 <@&${roleId}> — a new BC Truck Works release is published!` : "🧰 **New BC Truck Works release published** — the details are below.",
-      embeds: [embed],
+      embeds,
       allowedMentions: roleId ? { parse: [], roles: [roleId] } : { parse: [] },
     });
     lastSeenReleaseId = release.id;
@@ -396,13 +406,22 @@ async function handleCommand(interaction) {
         const active = await forum.threads.fetchActive().catch(() => null);
         const archived = await forum.threads.fetchArchived({ type: "public", limit: 50 }).catch(() => null);
         const threads = [...(active?.threads?.values() || []), ...(archived?.threads?.values() || [])];
-        if (!threads.some(thread => thread.name === title)) {
-          await forum.threads.create({
-            name: title,
-            message: { embeds: [new EmbedBuilder().setColor(0x43a6ff).setDescription(body).setFooter({ text: marker })] },
-            reason: "BC Truck Works forum instructions",
-          });
+        const existing = threads.find(thread => thread.name === title);
+        const guideEmbed = new EmbedBuilder().setColor(0x43a6ff).setDescription(body).setFooter({ text: marker });
+        if (existing) {
+          const starter = await existing.fetchStarterMessage().catch(() => null);
+          if (starter && starter.author.id === client.user.id) {
+            await starter.edit({ embeds: [guideEmbed], allowedMentions: { parse: [] } }).catch(error => {
+              console.warn(`Could not refresh guide ${title}:`, error.message || error);
+            });
+          }
+          return;
         }
+        await forum.threads.create({
+          name: title,
+          message: { embeds: [guideEmbed], allowedMentions: { parse: [] } },
+          reason: "BC Truck Works forum instructions",
+        });
       };
       const role = async (name, color) => {
         let item = guild.roles.cache.find(x => x.name.toLowerCase() === name.toLowerCase());
@@ -444,19 +463,120 @@ async function handleCommand(interaction) {
         "🧰 **Maintenance** — dependency updates, code cleanup, infrastructure work, and compatibility updates.",
         "📚 **Documentation** — setup instructions, guides, configuration notes, and troubleshooting improvements.",
         "🧪 **Testing** — validation, regression checks, and test coverage improvements.",
+        "🔗 **Integrations** — Discord bot, GitHub release monitoring, telemetry, website, and related connections.",
+        "📦 **Compatibility** — supported game versions, operating systems, dependencies, and mod-related notes where confirmed.",
         "📅 **Planned** — possible or in-progress work that has **not** shipped yet. Planned items are not promises or released features.",
         "",
-        "**Release notes are the source of truth.** Each automatic release post includes the published version, GitHub release notes, and a link to the release page. If a feature is marked Planned, wait for a published release before treating it as available.",
+        "### What an update post should tell you",
+        "- **Version and release date:** identify which published build the notes describe.",
+        "- **Added / Improved / Fixed:** summarize the important changes in plain language.",
+        "- **Compatibility or setup notes:** call out relevant requirements or steps users may need to take.",
+        "- **Known issues:** mention confirmed limitations that users should know about.",
+        "- **Download and details:** use the official GitHub release link rather than untrusted re-uploads.",
         "",
-        "Have an idea or found a problem? Use **#suggestions** for ideas, **#bug-reports** for confirmed issues, or **#mod-requests** for ATS/ETS2 mod requests. Use private support tickets for account-specific or sensitive help.",
+        "### Automatic release announcements",
+        "When a new, published GitHub release is detected, the bot posts the version, repository, full available release notes, and a direct release link here. Long notes are split across multiple embeds so they are not silently cut off; GitHub remains the source for any exceptionally long notes. Draft and prerelease versions are not announced by the automatic watcher.",
+        "",
+        "**Release notes are the source of truth.** A planned item is not available until it appears in a published release or is otherwise clearly confirmed by the project. If you find a problem, use **#bug-reports**; for ideas, use **#suggestions**; for ATS/ETS2 mod questions, use **#mod-requests**. Use private support tickets for account-specific or sensitive help.",
+        "",
+        "Please keep changelog discussion constructive and include the release version when reporting a regression. Do not post passwords, bot tokens, API keys, private keys, or private configuration files.",
         "",
         "Serious RP • Realism • Community Driven — BC Truck Works"
       ].join("\n"));
       await panel(status, "BC Truck Works · Status", "📡 Project Status", "Use /status to check the bot and GitHub release monitor. [Repository](https://github.com/" + repository + ") · [Releases](https://github.com/" + repository + "/releases)");
       await panel(support, "BC Truck Works · Support", "🛟 Get Support", "Use /supportpanel to open a private support ticket. Never share passwords, bot tokens, or private keys.");
-      await forumWelcomePost(bugReports, "📌 How to Report a Bug", "Create one post per bug. Include the affected feature, steps to reproduce, what you expected, what happened, and safe error details. Never post passwords, tokens, or private information.", "BC Truck Works · Bug Reports Guide");
-      await forumWelcomePost(modRequests, "📌 Mod Requests & Compatibility", "Create one post per mod or mod-related question. Include the game (ATS or ETS2), mod name/version, game version, and what you need help with. Use trusted download sources.", "BC Truck Works · Mod Requests Guide");
-      await forumWelcomePost(suggestions, "📌 How to Submit Suggestions", "Create one post per idea. Explain what you would like added or changed and how it would help the community. Use replies to discuss the idea.", "BC Truck Works · Suggestions Guide");
+      await forumWelcomePost(bugReports, "📌 How to Report a Bug", [
+        "## 🐛 BC Truck Works · Bug Reports Guide",
+        "Use this forum to report bugs, crashes, errors, broken commands, or features that do not work as expected. Clear reports help the team understand the problem and try to reproduce it.",
+        "",
+        "### Before posting",
+        "- Search existing topics first. If the same issue is already reported, add useful details to that topic instead of creating a duplicate.",
+        "- Create one post per bug and give it a clear title that describes the problem.",
+        "- Confirm which app, command, feature, or workflow is affected.",
+        "",
+        "### Include these details",
+        "1. **Affected feature:** Name the command, screen, integration, or workflow.",
+        "2. **Environment:** ATS or ETS2 (if relevant), game version, companion/bot version, operating system, and relevant mod details.",
+        "3. **Steps to reproduce:** Number the steps another person can follow to see the same issue.",
+        "4. **Expected result:** Explain what you thought should happen.",
+        "5. **Actual result:** Explain what happened instead and include exact error text when available.",
+        "6. **Evidence:** Add a relevant screenshot or short log excerpt if it helps. Review it first and remove private details.",
+        "",
+        "### Example report",
+        "**Title:** `/status` command returns an error",
+        "**Steps:** 1) Run `/status`; 2) wait for the response; 3) note the error shown.",
+        "**Expected:** The bot reports its connection and release-monitor status.",
+        "**Actual:** The command returns an error instead.",
+        "**Version/details:** Include the versions and safe error text you know.",
+        "",
+        "### Safety and follow-up",
+        "Never post passwords, Discord bot tokens, API keys, private keys, session cookies, authentication codes, or other secrets. Do not upload configuration files or logs without checking them for sensitive information. Stay respectful, keep follow-up replies in the original topic, and share new information there. Use a private support ticket for account-specific or sensitive issues.",
+        "",
+        "The team may ask questions, investigate, or update the topic's status. A report is not a promise that a fix is already available. Thank you for helping make BC Truck Works more reliable."
+      ].join("\n"), "BC Truck Works · Bug Reports Guide");
+      await forumWelcomePost(modRequests, "📌 Mod Requests & Compatibility", [
+        "## 🧰 BC Truck Works · Mod Requests & Compatibility Guide",
+        "Use this forum for mod requests, ATS/ETS2 mod questions, compatibility checks, load-order questions, and help understanding whether a mod works with your game or a BC Truck Works companion feature.",
+        "",
+        "### Create a focused topic",
+        "- Make one post per mod or compatibility question so replies stay organized.",
+        "- Search existing topics first and reply to a matching discussion when possible.",
+        "- Use a specific title, such as `ATS — Is Mod Name compatible with game version X?`.",
+        "",
+        "### What to include",
+        "1. **Game:** American Truck Simulator (ATS) or Euro Truck Simulator 2 (ETS2).",
+        "2. **Game version:** Include the version number where possible.",
+        "3. **Mod details:** Exact name, version, and author/publisher if known.",
+        "4. **Source link:** Prefer the official author's page, Steam Workshop where applicable, or a known trusted mod platform.",
+        "5. **Your question:** Explain whether you need a recommendation, installation help, compatibility information, or troubleshooting.",
+        "6. **What you tried:** Mention relevant settings, load order, DLC, or troubleshooting steps.",
+        "7. **Error details:** Share only the relevant text after removing personal information and secrets.",
+        "",
+        "### Safe downloads and compatibility",
+        "A mod that works with one game version may not work with another. Check the mod author's compatibility notes and update history. Be careful with suspicious mirrors, shortened links, unexpected executable installers, password-protected archives, and pages that tell you to disable security software. Do not request pirated files or redistribution that violates a creator's terms.",
+        "Compatibility can depend on the game version, DLC, other mods, load order, and server settings. Include those details when they are relevant, and distinguish confirmed information from guesses.",
+        "",
+        "### Example request",
+        "**Title:** `ETS2 — Mod Name compatibility with version X`",
+        "**Game/version:** ETS2, version X",
+        "**Mod/version:** Exact name and version",
+        "**Question:** What do you need to confirm or fix?",
+        "**Source:** Link to the trusted mod page",
+        "**What I tried:** Relevant steps or load-order changes",
+        "",
+        "Keep replies respectful and on the original topic. If you discover the answer, post it so other drivers can benefit. Never share passwords, tokens, private keys, or personal information. Thanks for helping keep the BC Truck Works mod community organized and safe."
+      ].join("\n"), "BC Truck Works · Mod Requests Guide");
+      await forumWelcomePost(suggestions, "📌 How to Submit Suggestions", [
+        "## 💡 BC Truck Works · Suggestions Guide",
+        "Use this forum to suggest features, quality-of-life improvements, documentation, integrations, community tools, or changes to an existing BC Truck Works workflow.",
+        "",
+        "### Before posting",
+        "- Search existing suggestions first. If a similar idea already exists, add your thoughts to that topic.",
+        "- Create one post per idea so each proposal can be discussed and evaluated separately.",
+        "- Use a clear title that describes the change rather than a generic title like `Suggestion`.",
+        "",
+        "### What makes a helpful suggestion?",
+        "1. **The idea:** Describe what you would like added, changed, or improved.",
+        "2. **The need:** Explain what is missing, confusing, repetitive, or difficult today.",
+        "3. **The benefit:** Tell us who it helps and how it would improve the experience.",
+        "4. **Example use case:** Describe when or how someone would use the feature.",
+        "5. **Optional supporting details:** Add a mock-up, example workflow, or relevant screenshot if it clarifies the idea. Remove private information first.",
+        "",
+        "### Example suggestion",
+        "**Title:** `Add a clearer telemetry connection status`",
+        "**Idea:** Show whether the companion is connected, waiting for telemetry, or disconnected.",
+        "**Why it helps:** Drivers could understand the current state without guessing or restarting the app unnecessarily.",
+        "**Use case:** A driver launches ATS and wants to confirm telemetry has been detected.",
+        "",
+        "### Discussion guidelines",
+        "Use replies to ask questions, share use cases, and suggest refinements. Be respectful when agreeing or disagreeing, and explain trade-offs constructively. Do not post passwords, API keys, bot tokens, private keys, or confidential information.",
+        "",
+        "### Review and status",
+        "Ideas may be discussed, clarified, considered, planned, declined, or implemented. A suggestion is not a promise that a feature will be built. `Planned` does not mean released; check the Development Changelog and published release notes for confirmed changes.",
+        "For confirmed bugs, use **#bug-reports**. For ATS/ETS2 mod questions, use **#mod-requests**. For account-specific or sensitive help, open a private support ticket.",
+        "",
+        "Thank you for helping shape BC Truck Works. Clear ideas and respectful discussion help the project focus on changes that provide real value to the community."
+      ].join("\n"), "BC Truck Works · Suggestions Guide");
       return interaction.editReply("✅ Setup complete. Created or reused the standard channels, three separate forums, ticket category, and update/support roles.\n\nChannels: " + [announcements, changelog, status, support, bugReports, modRequests, suggestions].map(x => "<#" + x.id + ">").join(" · ") + "\n\nForum channels: #bug-reports, #mod-requests, and #suggestions. IDs are saved for this running process; configure hosting environment variables for persistence after restarts.");
     }
 
