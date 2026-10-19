@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, utilityProcess } = require("electron");
+const { app, BrowserWindow, shell, utilityProcess, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -6,6 +7,7 @@ const http = require("http");
 let serverProcess;
 let telemetryProcess;
 let logStream;
+let updatePromptShown = false;
 const PORT = Number(process.env.BC_COMPANION_PORT || 32145);
 const URL = `http://127.0.0.1:${PORT}`;
 
@@ -20,6 +22,44 @@ function attachChildLogs(child, label) {
   child.stderr?.on("data", chunk => log(`[${label}:stderr]`, chunk.toString().trimEnd()));
   child.on("error", err => log(`[${label}:error]`, err));
   child.on("exit", (code, signal) => log(`[${label}:exit]`, `code=${code}`, `signal=${signal}`));
+}
+
+function configureAutoUpdates() {
+  // Updates are only checked in installed Windows builds.
+  if (!app.isPackaged || process.platform !== "win32") {
+    log("Auto-update disabled for this run (requires a packaged Windows build).");
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on("checking-for-update", () => log("Checking for desktop updates."));
+  autoUpdater.on("update-available", info => log("Desktop update available:", info.version, "download will begin automatically."));
+  autoUpdater.on("update-not-available", info => log("Desktop app is up to date:", info.version));
+  autoUpdater.on("download-progress", progress => log("Update download progress:", Math.round(progress.percent) + "%"));
+  autoUpdater.on("update-downloaded", async info => {
+    log("Desktop update downloaded:", info.version);
+    if (updatePromptShown) return;
+    updatePromptShown = true;
+    const choice = await dialog.showMessageBox({
+      type: "info",
+      buttons: ["Restart and install", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+      title: "BC Truck Works update ready",
+      message: "Version " + info.version + " is ready to install.",
+      detail: "Save your work before restarting. If you choose Later, the update will install when you quit the app."
+    });
+    if (choice.response === 0) autoUpdater.quitAndInstall(false, true);
+  });
+  autoUpdater.on("error", error => log("Desktop auto-update error:", error));
+  // Update failures must never prevent the dashboard from opening.
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(error => log("Update check failed:", error));
+  }, 12000).unref();
 }
 
 function waitForServer(timeoutMs = 30000) {
@@ -149,6 +189,7 @@ app.whenReady().then(() => {
     log("App path:", app.getAppPath());
     log("Resources path:", process.resourcesPath);
     log("Log file:", logPath);
+    configureAutoUpdates();
   } catch (err) {
     console.error("Could not initialize startup log:", err);
   }
