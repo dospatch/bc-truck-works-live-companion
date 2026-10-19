@@ -146,3 +146,16 @@ button:active {
     background: #0009;
   }
 }
+
+
+/* Normalize pointer interaction so clicked controls do not retain a pressed/focused look. */
+button:focus { outline: none; }
+button:focus-visible { outline: 2px solid #8acbff; outline-offset: 3px; }
+button:active { filter: brightness(.96); }
+button:disabled { cursor: not-allowed; opacity: .62; }
+button:disabled:active { filter: none; }
+@media (hover: hover) {
+  .primary-button:hover:not(:disabled) { filter: brightness(1.08); }
+  .outline-button:hover:not(:disabled), .text-button:hover:not(:disabled) { border-color: #43a4ff; color: #fff; }
+  .prompt-row button:hover { border-color: #43a4ff; background: #12304b; }
+}
