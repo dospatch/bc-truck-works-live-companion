@@ -100,3 +100,49 @@ html{scroll-behavior:smooth;scroll-padding-top:18px}
 .nav-group{min-width:0}
 .nav-item{width:100%;text-align:left;cursor:pointer}
 .nav-item:active{transform:translateY(1px)}
+
+
+/* Button interaction polish: only show keyboard focus rings, never leave a clicked
+   control looking pressed. Keep the selected sidebar item intentionally highlighted. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
+}
+button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+button:focus-visible {
+  outline: 2px solid #8acbff;
+  outline-offset: 3px;
+}
+button:active {
+  transform: none;
+}
+.nav-item.active {
+  box-shadow: inset 3px 0 0 #43a4ff;
+}
+@media(max-width:760px) {
+  .app-shell > .sidebar.mobile-open {
+    display: flex;
+    position: fixed;
+    z-index: 60;
+    inset: 0 auto 0 0;
+    width: min(280px, 84vw);
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+    box-shadow: 10px 0 35px #0008;
+  }
+  .app-shell > .sidebar.mobile-open ~ .workspace {
+    min-width: 0;
+  }
+  .app-shell > .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    border: 0;
+    background: #0009;
+  }
+}
