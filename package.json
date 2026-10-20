@@ -1,6 +1,6 @@
 {
   "name": "bc-truck-works-live-companion",
-  "version": "1.0.0",
+  "version": "1.0.1.
   "private": true,
   "description": "BC Truck Works Live Companion for ATS and ETS2",
   "main": "electron/main.cjs",
@@ -8,12 +8,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node index.js",
-    "start:production": "node index.js",
+    "start: production": "node index.js",
     "lint": "eslint .",
-    "desktop:start": "electron .",
+    "desktop: start": "electron .",
     "desktop:dist": "npm install --include=dev && npm run build && electron-builder --win nsis",
-    "simulate:convoy": "node scripts/simulate-convoy.mjs",
-    "bot:start": "node bot/index.js"
+    "simulate: convoy": "node scripts/simulate-convoy.mjs",
+    "bot: start": "node bot/index.js"
   },
   "dependencies": {
     "next": "^15.5.0",
