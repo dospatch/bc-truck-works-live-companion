@@ -1,6 +1,7 @@
+```json
 {
   "name": "bc-truck-works-live-companion",
-  "version": "1.0.1"
+  "version": "1.0.1",
   "private": true,
   "description": "BC Truck Works Live Companion for ATS and ETS2",
   "main": "electron/main.cjs",
@@ -98,3 +99,4 @@
     ]
   }
 }
+```
