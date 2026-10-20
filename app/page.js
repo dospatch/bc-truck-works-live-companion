@@ -230,7 +230,7 @@ export default function Home() {
     setGeneratingPairingCode(true);
     setPairingStatus("Requesting a secure one-time code from your website…");
     try {
-      const response = await fetch(pairingWebsite.replace(/\\/$/, "") + "/api/pair", { method: "POST", cache: "no-store" });
+      const response = await fetch(pairingWebsite.replace(/\/$/, "") + "/api/pair", { method: "POST", cache: "no-store" });
       const result = await response.json();
       if (!response.ok || !result.code) throw new Error(result.error || "Could not generate a pairing code. Check that the website pairing service is available.");
       setPairingCode(result.code);
