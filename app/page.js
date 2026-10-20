@@ -225,6 +225,27 @@ export default function Home() {
   const [pairingCode, setPairingCode] = useState("");
   const [pairingWebsite, setPairingWebsite] = useState("https://bc-truck-works-live-companion.vercel.app");
   const [pairingStatus, setPairingStatus] = useState("");
+  const [generatingPairingCode, setGeneratingPairingCode] = useState(false);
+  async function generatePairingCode() {
+    setGeneratingPairingCode(true);
+    setPairingStatus("Requesting a secure one-time code from your website…");
+    try {
+      const response = await fetch(pairingWebsite.replace(/\\/$/, "") + "/api/pair", { method: "POST", cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.code) throw new Error(result.error || "Could not generate a pairing code. Check that the website pairing service is available.");
+      setPairingCode(result.code);
+      setPairingStatus("Code generated. Pairing this desktop now…");
+      const pairResponse = await fetch("http://127.0.0.1:32146/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: result.code, website: pairingWebsite }) });
+      const pairResult = await pairResponse.json();
+      if (!pairResponse.ok || !pairResult.ok) throw new Error(pairResult.error || "Code generated, but desktop pairing failed. You can click Pair desktop app to retry.");
+      setPairingStatus("Paired successfully. This desktop will upload live telemetry when the game is running.");
+      setPairingCode("");
+    } catch (error) {
+      setPairingStatus(error.message || "Could not generate or use a pairing code.");
+    } finally {
+      setGeneratingPairingCode(false);
+    }
+  }
   async function pairDesktop() {
     setPairingStatus("Connecting securely…");
     try {
@@ -249,7 +270,7 @@ export default function Home() {
       <div className="metrics" id="truck-health">{metrics.map(m=><article className="metric" key={m[0]}><div className="metric-icon">{m[3]}</div><div className="metric-label">{m[0]}</div><strong>{m[1]}</strong><small>{m[2]}</small></article>)}</div>
       <div className="notice" id="status-notice"><b>STATUS</b><span>{notice}</span></div>
       {selectedModule&&<section className="panel nav-module-placeholder" id="nav-module-placeholder" aria-live="polite"><header className="panel-heading"><h2><i/> {selectedModule.toUpperCase()}</h2><span className="soft-tag">{moduleDetails[selectedModule]?.status||"MODULE"}</span></header><p>{moduleDetails[selectedModule]?.description||("The "+selectedModule+" workspace is registered in the sidebar. Its specific features will be connected here as the module is built.")}</p>{selectedModule==="Under the Hood"||selectedModule==="Settings"?<div className="module-actions"><button type="button" className="outline-button" onClick={()=>{setSelectedModule("");document.getElementById("voice-settings")?.scrollIntoView({behavior:"smooth",block:"start"});}}>Voice & personality settings</button><button type="button" className="outline-button" onClick={()=>{setSelectedModule("");document.getElementById("callouts")?.scrollIntoView({behavior:"smooth",block:"start"});}}>Automatic callouts</button><button type="button" className="outline-button" onClick={()=>{setSelectedModule("");setShowProfiles(true);document.getElementById("app-profiles")?.scrollIntoView({behavior:"smooth",block:"start"});}}>Manage app profiles</button></div>:null}{selectedModule==="Help & Support"?<button type="button" className="outline-button" onClick={()=>{window.location.href="/ideas";}}>💡 Submit an idea or bug report</button>:null}<button type="button" className="outline-button" style={{marginTop:12}} onClick={()=>{setSelectedModule("");setActiveNav("Drive");document.getElementById("dashboard-top")?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});}}>← Back to dashboard</button></section>}
-      {pairingOpen&&<section className="panel" style={{marginBottom:14}}><header className="panel-heading"><h2><i/> PAIR THIS DESKTOP TO YOUR WEBSITE</h2><button type="button" className="outline-button" onClick={()=>setPairingOpen(false)}>Close</button></header><p className="helper-text">Open Connect my game on your website to generate a one-time code that expires after 10 minutes. Your per-driver token is stored locally by the desktop bridge.</p><div className="setting-fields" style={{gridTemplateColumns:"minmax(0,1fr) minmax(0,2fr)"}}><label>6-CHARACTER CODE<input autoComplete="off" maxLength={6} value={pairingCode} onChange={e=>setPairingCode(e.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,""))} placeholder="ABC234"/></label><label>WEBSITE URL<input value={pairingWebsite} onChange={e=>setPairingWebsite(e.target.value)} placeholder="https://your-site.vercel.app"/></label></div><button type="button" className="primary-button" style={{marginTop:12,minHeight:44}} onClick={pairDesktop} disabled={pairingCode.length!==6}>Pair desktop app</button>{pairingStatus&&<p role="status" className="helper-text">{pairingStatus}</p>}</section>}
+      {pairingOpen&&<section className="panel" style={{marginBottom:14}}><header className="panel-heading"><h2><i/> PAIR THIS DESKTOP TO YOUR WEBSITE</h2><button type="button" className="outline-button" onClick={()=>setPairingOpen(false)}>Close</button></header><p className="helper-text">Generate a one-time code and pair this desktop automatically. Codes expire after 10 minutes, and your driver token is stored locally.</p><div className="setting-fields" style={{gridTemplateColumns:"minmax(0,1fr) minmax(0,2fr)"}}><label>6-CHARACTER CODE<input autoComplete="off" maxLength={6} value={pairingCode} onChange={e=>setPairingCode(e.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,""))} placeholder="Generated automatically"/></label><label>WEBSITE URL<input value={pairingWebsite} onChange={e=>setPairingWebsite(e.target.value)} placeholder="https://your-site.vercel.app"/></label></div><div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}><button type="button" className="primary-button" style={{minHeight:44}} onClick={generatePairingCode} disabled={generatingPairingCode}>{generatingPairingCode?"Generating and pairing…":"Generate code & pair automatically"}</button><button type="button" className="outline-button" style={{minHeight:44}} onClick={pairDesktop} disabled={pairingCode.length!==6}>Pair existing code</button></div>{pairingStatus&&<p role="status" className="helper-text">{pairingStatus}</p>}</section>}
       <div className="content-grid">
         <div className="left-column">
           <section className="panel chat-panel" id="co-driver"><header className="panel-heading"><h2><i/> TALK TO YOUR CO-DRIVER</h2><button type="button" className="outline-button" onClick={listen} aria-pressed={listening} disabled={listening}>{listening?"🎙 Listening…":"🎙 Speak to co-driver"}</button></header>
