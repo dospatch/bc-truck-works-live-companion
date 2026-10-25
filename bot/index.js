@@ -304,21 +304,70 @@ async function handleCommand(interaction) {
       return;
     }
 
-    if (interaction.isButton() && interaction.customId === "bc_ticket_close") {
-      await interaction.deferReply({ ephemeral: true });
+    if (interaction.isButton() && interaction.customId.startsWith("bc_ticket_")) {
       if (!interaction.guild || !interaction.channel || interaction.channel.type !== ChannelType.GuildText) {
-        return interaction.editReply("This close button can only be used inside a ticket channel.");
+        return interaction.reply({ content: "These controls only work inside a ticket channel.", ephemeral: true });
       }
-      const isStaff = ticketStaffRoleId && interaction.member && interaction.member.roles && interaction.member.roles.cache && interaction.member.roles.cache.has(ticketStaffRoleId);
-      const isOpener = Boolean(interaction.channel.topic && interaction.channel.topic.includes(`(${interaction.user.id})`));
-      const isManager = interaction.memberPermissions && interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels);
-      if (!isStaff && !isOpener && !isManager) {
-        return interaction.editReply("Only the ticket opener or support staff can close this ticket.");
+      const topic = interaction.channel.topic || "";
+      const isStaff = Boolean(ticketStaffRoleId && interaction.member?.roles?.cache?.has(ticketStaffRoleId));
+      const isManager = Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels));
+      const isOpener = topic.includes(`(${interaction.user.id})`);
+      const staffOnly = ["bc_ticket_claim", "bc_ticket_reopen", "bc_ticket_addstaff"].includes(interaction.customId);
+      if (staffOnly && !isStaff && !isManager) {
+        return interaction.reply({ content: "Only support staff or a channel manager can use that control.", ephemeral: true });
       }
-      await interaction.editReply("Ticket closed. This channel will be deleted in 10 seconds.");
-      await interaction.channel.send({ content: `🔒 Ticket closed by <@${interaction.user.id}>. This channel will be deleted in 10 seconds.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
-      setTimeout(() => interaction.channel.delete("BC Truck Works support ticket closed").catch(error => console.error("Could not delete closed ticket:", error.message || error)), 10000);
-      return;
+      if (interaction.customId === "bc_ticket_claim") {
+        if (topic.includes("Claimed by:")) return interaction.reply({ content: "This ticket has already been claimed. Check the channel topic.", ephemeral: true });
+        await interaction.channel.setTopic(`${topic} | Claimed by: ${interaction.user.tag} (${interaction.user.id})`.slice(0, 1024), "Ticket claimed by support staff");
+        await interaction.reply({ content: `🙋 Ticket claimed by <@${interaction.user.id}>.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
+        return;
+      }
+      if (interaction.customId === "bc_ticket_close") {
+        if (!isStaff && !isOpener && !isManager) return interaction.reply({ content: "Only the ticket opener or support staff can close this ticket.", ephemeral: true });
+        const openerMatch = topic.match(/Opened by .+? \((\d{17,20})\)/);
+        if (openerMatch) await interaction.channel.permissionOverwrites.edit(openerMatch[1], { SendMessages: false, AddReactions: false }).catch(() => {});
+        await interaction.channel.setTopic(`${topic} | Status: Closed`.slice(0, 1024), "Ticket closed; retained for reopening");
+        const controls = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("bc_ticket_claim").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary).setEmoji("🙋"),
+          new ButtonBuilder().setCustomId("bc_ticket_addstaff").setLabel("Add Staff").setStyle(ButtonStyle.Secondary).setEmoji("👥"),
+          new ButtonBuilder().setCustomId("bc_ticket_reopen").setLabel("Reopen Ticket").setStyle(ButtonStyle.Success).setEmoji("🔓"),
+          new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒").setDisabled(true)
+        );
+        await interaction.channel.send({ content: `🔒 Ticket closed by <@${interaction.user.id}>. The conversation is saved here; support staff can reopen it.`, components: [controls], allowedMentions: { parse: [], users: [interaction.user.id] } });
+        await interaction.reply({ content: "Ticket closed and retained. Support staff can reopen it later.", ephemeral: true });
+        return;
+      }
+      if (interaction.customId === "bc_ticket_reopen") {
+        const openerMatch = topic.match(/Opened by .+? \((\d{17,20})\)/);
+        if (openerMatch) await interaction.channel.permissionOverwrites.edit(openerMatch[1], { SendMessages: true, ViewChannel: true, ReadMessageHistory: true }).catch(() => {});
+        const cleanTopic = topic.replace(/ \| Status: Closed/g, "");
+        await interaction.channel.setTopic(cleanTopic.slice(0, 1024), "Ticket reopened by support staff");
+        await interaction.reply({ content: `🔓 Ticket reopened by <@${interaction.user.id}>.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
+        return;
+      }
+      if (interaction.customId === "bc_ticket_addstaff") {
+        const modal = new ModalBuilder().setCustomId("bc_ticket_addstaff_modal").setTitle("Add Staff to Ticket");
+        const userIdInput = new TextInputBuilder().setCustomId("staff_user_id").setLabel("Staff member's Discord user ID").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(20).setPlaceholder("Paste the numeric Discord user ID");
+        modal.addComponents(new ActionRowBuilder().addComponents(userIdInput));
+        await interaction.showModal(modal);
+        return;
+      }
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === "bc_ticket_addstaff_modal") {
+      await interaction.deferReply({ ephemeral: true });
+      const isStaff = Boolean(ticketStaffRoleId && interaction.member?.roles?.cache?.has(ticketStaffRoleId));
+      const isManager = Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels));
+      if (!isStaff && !isManager) return interaction.editReply("Only support staff or a channel manager can add staff to a ticket.");
+      const userId = interaction.fields.getTextInputValue("staff_user_id").trim();
+      if (!/^\d{17,20}$/.test(userId)) return interaction.editReply("That does not look like a valid Discord user ID. Please use the numeric ID, not the display name.");
+      const member = await interaction.guild.members.fetch(userId).catch(() => null);
+      if (!member) return interaction.editReply("I couldn't find that user in this server. Check the ID and try again.");
+      await interaction.channel.permissionOverwrites.edit(userId, {
+        ViewChannel: true, SendMessages: true, ReadMessageHistory: true, AttachFiles: true, EmbedLinks: true
+      }, { reason: `Added to BC Truck Works ticket by ${interaction.user.tag}` });
+      await interaction.channel.send({ content: `👥 <@${userId}> was added to this ticket by <@${interaction.user.id}>.`, allowedMentions: { parse: [], users: [userId, interaction.user.id] } });
+      return interaction.editReply(`Added <@${userId}> to this ticket.`);
     }
 
     if (interaction.isModalSubmit() && interaction.customId.startsWith("bc_issue_modal:")) {
@@ -403,6 +452,8 @@ async function handleCommand(interaction) {
         .setFooter({ text: `User ID: ${interaction.user.id} · BC Truck Works Support` })
         .setTimestamp();
       const closeButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("bc_ticket_claim").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary).setEmoji("🙋"),
+        new ButtonBuilder().setCustomId("bc_ticket_addstaff").setLabel("Add Staff").setStyle(ButtonStyle.Secondary).setEmoji("👥"),
         new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒")
       );
       await ticketChannel.send({
