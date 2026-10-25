@@ -226,6 +226,14 @@ async function handleCommand(interaction) {
           detailsPlaceholder: "Include your game, what you were doing, and any error message.",
           areaPlaceholder: "ATS, ETS2, telemetry, or companion app"
         },
+        "CB Radio / Music": {
+          title: "CB Radio and Music Help",
+          summaryLabel: "What needs help?",
+          summaryPlaceholder: "Radio, audio, or music issue",
+          detailsLabel: "Describe the radio or music issue",
+          detailsPlaceholder: "Tell us what you expected and what happened.",
+          areaPlaceholder: "CB radio, music, audio, or voice"
+        },
         "Website / Dashboard": {
           title: "Website and Dashboard Help",
           summaryLabel: "Which page has a problem?",
@@ -329,6 +337,7 @@ async function handleCommand(interaction) {
       const routeByType = {
         "ATS / ETS2 Companion": "game",
         "Website / Dashboard": "app",
+        "CB Radio / Music": "radio",
         "Discord Bot Help": "general",
         "Bug / Problem": "bugs",
         "Account / Access": "general",
@@ -670,12 +679,13 @@ async function handleCommand(interaction) {
           { label: "Discord Bot Help", value: "Discord Bot Help", description: "Commands, bot responses, or permissions", emoji: "🤖" },
           { label: "ATS / ETS2 Companion Help", value: "ATS / ETS2 Companion", description: "Companion app or game connection", emoji: "🚛" },
           { label: "Website / Dashboard Help", value: "Website / Dashboard", description: "Website or dashboard issues", emoji: "🌐" },
+          { label: "CB Radio / Music Help", value: "CB Radio / Music", description: "Radio, music, or audio help", emoji: "📻" },
           { label: "Submit a Suggestion", value: "Suggestion", description: "Share an idea to improve BC Truck Works", emoji: "💡" },
           { label: "Other Request", value: "Other Request", description: "Something not listed above", emoji: "📩" }
         );
       const embed = new EmbedBuilder().setColor(0x43a6ff).setTitle("🚛 BC Truck Works — Help Center")
         .setDescription("**Need something? Choose an option from the menu below.**\n\nA short form will open so you can explain your request. Your message will be posted in the configured support channel, and the support role will be tagged. Please never include passwords, bot tokens, or private keys.")
-        .addFields({ name: "Available options", value: "🆘 General support\n🐛 Bug reports\n🔐 Account/access help\n🤖 Discord bot help\n🚛 ATS/ETS2 companion help\n🌐 Website/dashboard help\n💡 Suggestions\n📩 Other requests" })
+        .addFields({ name: "Available options", value: "🆘 General support\n🐛 Bug reports\n🔐 Account/access help\n🤖 Discord bot help\n🚛 ATS/ETS2 companion help\n🌐 Website/dashboard help\n📻 CB radio/music help\n💡 Suggestions\n📩 Other requests" })
         .setFooter({ text: "BC Truck Works Support · Test Panel" });
       return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
     }
