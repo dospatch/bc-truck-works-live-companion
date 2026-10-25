@@ -331,9 +331,6 @@ async function handleCommand(interaction) {
         return interaction.editReply("Please submit help requests from inside the BC Truck Works Discord server.");
       }
 
-      if (!ticketCategoryId) {
-        return interaction.editReply("Tickets are not configured yet. Please ask a server moderator to set DISCORD_TICKET_CATEGORY_ID to the Discord category ID where tickets should be created.");
-      }
       const routeByType = {
         "ATS / ETS2 Companion": "game",
         "Website / Dashboard": "app",
@@ -346,13 +343,30 @@ async function handleCommand(interaction) {
         "Other Request": "general",
       };
       const routeKey = routeByType[category] || "general";
+      const categoryNames = {
+        app: "📦 App Support",
+        game: "🚛 Game & Convoy Support",
+        radio: "📻 Radio & Music",
+        bugs: "🐛 Bug Reports",
+        general: "🛟 General Support",
+      };
       const configuredCategoryId = ticketCategoryIds[routeKey] || ticketCategoryId;
-      if (!configuredCategoryId) {
-        return interaction.editReply("Tickets are not configured yet. Ask a server moderator to set DISCORD_TICKET_CATEGORY_ID or the matching DISCORD_TICKET_CATEGORY_*_ID.");
-      }
-      const parentCategory = await interaction.guild.channels.fetch(configuredCategoryId).catch(() => null);
-      if (!parentCategory || parentCategory.type !== ChannelType.GuildCategory) {
-        return interaction.editReply("The configured ticket category could not be found. Ask a moderator to check the ticket category IDs.");
+      let parentCategory = configuredCategoryId
+        ? await interaction.guild.channels.fetch(configuredCategoryId).catch(() => null)
+        : null;
+      if (parentCategory && parentCategory.type !== ChannelType.GuildCategory) parentCategory = null;
+      if (!parentCategory) {
+        const desiredName = categoryNames[routeKey] || categoryNames.general;
+        parentCategory = interaction.guild.channels.cache.find(
+          ch => ch.type === ChannelType.GuildCategory && ch.name === desiredName
+        );
+        if (!parentCategory) {
+          parentCategory = await interaction.guild.channels.create({
+            name: desiredName,
+            type: ChannelType.GuildCategory,
+            reason: `Automatically created for BC Truck Works support tickets (${category})`,
+          });
+        }
       }
 
       const safeCategory = category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 18) || "support";
@@ -370,7 +384,7 @@ async function handleCommand(interaction) {
       const ticketChannel = await interaction.guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        parent: ticketCategoryId,
+        parent: parentCategory.id,
         topic: `BC Truck Works support ticket | Category: ${category} | Opened by ${interaction.user.tag} (${interaction.user.id})`,
         permissionOverwrites: overwrites,
         reason: `Support ticket opened by ${interaction.user.tag}`,
