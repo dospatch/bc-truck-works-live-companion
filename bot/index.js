@@ -25,6 +25,13 @@ let suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 let ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
 let ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
+const ticketCategoryIds = {
+  app: (process.env.DISCORD_TICKET_CATEGORY_APP_ID || "").trim(),
+  game: (process.env.DISCORD_TICKET_CATEGORY_GAME_ID || "").trim(),
+  radio: (process.env.DISCORD_TICKET_CATEGORY_RADIO_ID || "").trim(),
+  bugs: (process.env.DISCORD_TICKET_CATEGORY_BUGS_ID || "").trim(),
+  general: (process.env.DISCORD_TICKET_CATEGORY_GENERAL_ID || "").trim(),
+};
 const guildId = (process.env.DISCORD_GUILD_ID || "").trim();
 const repository = process.env.GITHUB_REPOSITORY || "dospatch/bc-truck-works-live-companion";
 const pollIntervalMs = Math.max(30, Number(process.env.RELEASE_POLL_SECONDS || 60)) * 1000;
@@ -319,9 +326,24 @@ async function handleCommand(interaction) {
       if (!ticketCategoryId) {
         return interaction.editReply("Tickets are not configured yet. Please ask a server moderator to set DISCORD_TICKET_CATEGORY_ID to the Discord category ID where tickets should be created.");
       }
-      const parentCategory = await interaction.guild.channels.fetch(ticketCategoryId).catch(() => null);
+      const routeByType = {
+        "ATS / ETS2 Companion": "game",
+        "Website / Dashboard": "app",
+        "Discord Bot Help": "general",
+        "Bug / Problem": "bugs",
+        "Account / Access": "general",
+        "Suggestion": "general",
+        "General Support": "general",
+        "Other Request": "general",
+      };
+      const routeKey = routeByType[category] || "general";
+      const configuredCategoryId = ticketCategoryIds[routeKey] || ticketCategoryId;
+      if (!configuredCategoryId) {
+        return interaction.editReply("Tickets are not configured yet. Ask a server moderator to set DISCORD_TICKET_CATEGORY_ID or the matching DISCORD_TICKET_CATEGORY_*_ID.");
+      }
+      const parentCategory = await interaction.guild.channels.fetch(configuredCategoryId).catch(() => null);
       if (!parentCategory || parentCategory.type !== ChannelType.GuildCategory) {
-        return interaction.editReply("The configured ticket category could not be found. Ask a moderator to check DISCORD_TICKET_CATEGORY_ID.");
+        return interaction.editReply("The configured ticket category could not be found. Ask a moderator to check the ticket category IDs.");
       }
 
       const safeCategory = category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 18) || "support";
@@ -444,6 +466,8 @@ async function handleCommand(interaction) {
       changelogChannelId = changelog.id;
       roleId = updatesRole.id;
       ticketCategoryId = tickets.id;
+      // Reuse the default ticket category for general support; optional dedicated categories
+      // can be configured with DISCORD_TICKET_CATEGORY_*_ID in the hosting environment.
       ticketStaffRoleId = staffRole.id;
       suggestionChannelId = suggestions.id;
       const panel = async (ch, footer, title, description) => {
