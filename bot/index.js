@@ -353,25 +353,41 @@ async function handleCommand(interaction) {
       }
       if (interaction.customId === "bc_ticket_close") {
         if (!isStaff && !isOpener && !isManager) return interaction.reply({ content: "Only the ticket opener or support staff can close this ticket.", ephemeral: true });
+        if (topic.includes("Status: Closed")) {
+          return interaction.reply({ content: "This ticket is already closed. Use Reopen Ticket to reopen it.", ephemeral: true });
+        }
         const openerMatch = topic.match(/Opened by .+? \((\d{17,20})\)/);
         if (openerMatch) await interaction.channel.permissionOverwrites.edit(openerMatch[1], { SendMessages: false, AddReactions: false }).catch(() => {});
         await interaction.channel.setTopic(`${topic} | Status: Closed`.slice(0, 1024), "Ticket closed; retained for reopening");
         const controls = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId("bc_ticket_claim").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary).setEmoji("🙋"),
-          new ButtonBuilder().setCustomId("bc_ticket_addstaff").setLabel("Add Staff").setStyle(ButtonStyle.Secondary).setEmoji("👥"),
+          new ButtonBuilder().setCustomId("bc_ticket_claim").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary).setEmoji("🙋").setDisabled(true),
+          new ButtonBuilder().setCustomId("bc_ticket_addstaff").setLabel("Add Staff").setStyle(ButtonStyle.Secondary).setEmoji("👥").setDisabled(true),
           new ButtonBuilder().setCustomId("bc_ticket_reopen").setLabel("Reopen Ticket").setStyle(ButtonStyle.Success).setEmoji("🔓"),
           new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒").setDisabled(true)
         );
-        await interaction.channel.send({ content: `🔒 Ticket closed by <@${interaction.user.id}>. The conversation is saved here; support staff can reopen it.`, components: [controls], allowedMentions: { parse: [], users: [interaction.user.id] } });
-        await interaction.reply({ content: "Ticket closed and retained. Support staff can reopen it later.", ephemeral: true });
+        await interaction.update({
+          content: `🔒 Ticket closed by <@${interaction.user.id}>. The conversation is saved here; support staff can reopen it.`,
+          components: [controls],
+          allowedMentions: { parse: [], users: [interaction.user.id] }
+        });
         return;
       }
       if (interaction.customId === "bc_ticket_reopen") {
+        if (!isStaff && !isManager) return interaction.reply({ content: "Only support staff or a channel manager can reopen this ticket.", ephemeral: true });
         const openerMatch = topic.match(/Opened by .+? \((\d{17,20})\)/);
         if (openerMatch) await interaction.channel.permissionOverwrites.edit(openerMatch[1], { SendMessages: true, ViewChannel: true, ReadMessageHistory: true }).catch(() => {});
         const cleanTopic = topic.replace(/ \| Status: Closed/g, "");
         await interaction.channel.setTopic(cleanTopic.slice(0, 1024), "Ticket reopened by support staff");
-        await interaction.reply({ content: `🔓 Ticket reopened by <@${interaction.user.id}>.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
+        const controls = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("bc_ticket_claim").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary).setEmoji("🙋"),
+          new ButtonBuilder().setCustomId("bc_ticket_addstaff").setLabel("Add Staff").setStyle(ButtonStyle.Secondary).setEmoji("👥"),
+          new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒")
+        );
+        await interaction.update({
+          content: `🔓 Ticket reopened by <@${interaction.user.id}>. The conversation continues here.`,
+          components: [controls],
+          allowedMentions: { parse: [], users: [interaction.user.id] }
+        });
         return;
       }
       if (interaction.customId === "bc_ticket_addstaff") {
