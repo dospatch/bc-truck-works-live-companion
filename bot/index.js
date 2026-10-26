@@ -400,7 +400,7 @@ async function handleCommand(interaction) {
               for (const message of ordered) {
                 const timestamp = new Date(message.createdTimestamp).toISOString();
                 const author = `${message.author.tag} (${message.author.id})`;
-                const body = (message.content || "").replace(/\\r?\\n/g, "\\n");
+                const body = (message.content || "").replace(/\r?\n/g, "\n");
                 const attachments = [...message.attachments.values()].map((a) => a.url).join(" ");
                 const embeds = message.embeds.length ? `[embeds: ${message.embeds.length}]` : "";
                 transcriptLines.push(`[${timestamp}] ${author}: ${body}${attachments ? ` [attachments: ${attachments}]` : ""} ${embeds}`.trimEnd());
@@ -410,11 +410,11 @@ async function handleCommand(interaction) {
               if (batch.size < 100 || !before) break;
             }
 
-            const transcript = new AttachmentBuilder(Buffer.from(transcriptLines.join("\\n"), "utf8"), {
+            const transcript = new AttachmentBuilder(Buffer.from(transcriptLines.join("\n"), "utf8"), {
               name: `transcript-${interaction.channel.name}-${interaction.channel.id}.txt`
             });
             await logChannel.send({
-              content: `📄 **Ticket Transcript Saved**\\n**Ticket:** <#${interaction.channel.id}> (${interaction.channel.name})\\n**Closed by:** <@${interaction.user.id}>\\n**Messages included:** ${total}`,
+              content: `📄 **Ticket Transcript Saved**\n**Ticket:** <#${interaction.channel.id}> (${interaction.channel.name})\n**Closed by:** <@${interaction.user.id}>\n**Messages included:** ${total}`,
               files: [transcript],
               allowedMentions: { parse: [], users: [interaction.user.id] }
             });
