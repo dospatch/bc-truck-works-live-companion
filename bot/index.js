@@ -343,8 +343,10 @@ async function handleCommand(interaction) {
         });
 
         await interaction.update({
+          components: updatedRows
+        });
+        await interaction.channel.send({
           content: `🙋 Ticket claimed by <@${interaction.user.id}>.`,
-          components: updatedRows,
           allowedMentions: { parse: [], users: [interaction.user.id] }
         });
         return;
