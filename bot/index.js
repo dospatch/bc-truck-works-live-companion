@@ -15,6 +15,7 @@ const {
   PermissionFlagsBits,
   ButtonBuilder,
   ButtonStyle,
+  AttachmentBuilder,
 } = require("discord.js");
 
 const token = process.env.DISCORD_TOKEN;
@@ -24,6 +25,7 @@ let roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 let suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 let ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
+const ticketLogChannelId = (process.env.DISCORD_TICKET_LOG_CHANNEL_ID || "").trim();
 let ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
 const ticketCategoryIds = {
   app: (process.env.DISCORD_TICKET_CATEGORY_APP_ID || "").trim(),
@@ -366,10 +368,64 @@ async function handleCommand(interaction) {
           new ButtonBuilder().setCustomId("bc_ticket_close").setLabel("Close Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒").setDisabled(true)
         );
         await interaction.update({
-          content: `🔒 Ticket closed by <@${interaction.user.id}>. The conversation is saved here; support staff can reopen it.`,
+          content: `🔒 **Ticket Closed**\nClosed by: <@${interaction.user.id}>\nThe conversation transcript is being saved to the staff logs.`,
           components: [controls],
           allowedMentions: { parse: [], users: [interaction.user.id] }
         });
+
+        if (ticketLogChannelId && /^\\d{17,20}$/.test(ticketLogChannelId)) {
+          try {
+            const logChannel = await interaction.guild.channels.fetch(ticketLogChannelId);
+            if (!logChannel || !logChannel.isTextBased() || typeof logChannel.send !== "function") {
+              throw new Error("Configured ticket log channel is missing or is not a text channel.");
+            }
+
+            const transcriptLines = [
+              `Ticket Transcript: #${interaction.channel.name}`,
+              `Server: ${interaction.guild.name} (${interaction.guild.id})`,
+              `Channel ID: ${interaction.channel.id}`,
+              `Closed by: ${interaction.user.tag} (${interaction.user.id})`,
+              `Opened/topic: ${topic || "Not recorded"}`,
+              `Generated: ${new Date().toISOString()}`,
+              "",
+              "===== CONVERSATION =====",
+              ""
+            ];
+            let before;
+            let total = 0;
+            while (total < 5000) {
+              const batch = await interaction.channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+              if (!batch.size) break;
+              const ordered = [...batch.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+              for (const message of ordered) {
+                const timestamp = new Date(message.createdTimestamp).toISOString();
+                const author = `${message.author.tag} (${message.author.id})`;
+                const body = (message.content || "").replace(/\\r?\\n/g, "\\n");
+                const attachments = [...message.attachments.values()].map((a) => a.url).join(" ");
+                const embeds = message.embeds.length ? `[embeds: ${message.embeds.length}]` : "";
+                transcriptLines.push(`[${timestamp}] ${author}: ${body}${attachments ? ` [attachments: ${attachments}]` : ""} ${embeds}`.trimEnd());
+                total++;
+              }
+              before = batch.last()?.id;
+              if (batch.size < 100 || !before) break;
+            }
+
+            const transcript = new AttachmentBuilder(Buffer.from(transcriptLines.join("\\n"), "utf8"), {
+              name: `transcript-${interaction.channel.name}-${interaction.channel.id}.txt`
+            });
+            await logChannel.send({
+              content: `📄 **Ticket Transcript Saved**\\n**Ticket:** <#${interaction.channel.id}> (${interaction.channel.name})\\n**Closed by:** <@${interaction.user.id}>\\n**Messages included:** ${total}`,
+              files: [transcript],
+              allowedMentions: { parse: [], users: [interaction.user.id] }
+            });
+          } catch (error) {
+            console.error("Failed to save ticket transcript to logs:", error);
+            await interaction.channel.send("⚠️ Ticket was closed, but the transcript could not be sent to the logs. Please check the ticket log channel configuration and bot permissions.");
+          }
+        } else {
+          console.warn("Ticket closed without a transcript: set DISCORD_TICKET_LOG_CHANNEL_ID to the staff log text channel ID.");
+          await interaction.channel.send("⚠️ Ticket closed, but transcript logging is not configured yet. Staff must set DISCORD_TICKET_LOG_CHANNEL_ID in the hosting environment.");
+        }
         return;
       }
       if (interaction.customId === "bc_ticket_reopen") {
