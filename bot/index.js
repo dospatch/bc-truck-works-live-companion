@@ -25,7 +25,7 @@ let roleId = (process.env.DISCORD_RELEASE_ROLE_ID || "").trim();
 let suggestionChannelId = (process.env.DISCORD_SUGGESTION_CHANNEL_ID || "").trim();
 const issueChannelId = (process.env.DISCORD_ISSUE_CHANNEL_ID || "").trim();
 let ticketStaffRoleId = (process.env.DISCORD_TICKET_STAFF_ROLE_ID || "").trim();
-const ticketLogChannelId = (process.env.DISCORD_TICKET_LOG_CHANNEL_ID || "").trim();
+const ticketLogChannelId = (process.env.DISCORD_TICKET_LOG_CHANNEL_ID || "1546600629445730345").trim();
 let ticketCategoryId = (process.env.DISCORD_TICKET_CATEGORY_ID || "").trim();
 const ticketCategoryIds = {
   app: (process.env.DISCORD_TICKET_CATEGORY_APP_ID || "").trim(),
