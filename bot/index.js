@@ -317,9 +317,36 @@ async function handleCommand(interaction) {
         return interaction.reply({ content: "Only support staff or a channel manager can use that control.", ephemeral: true });
       }
       if (interaction.customId === "bc_ticket_claim") {
-        if (topic.includes("Claimed by:")) return interaction.reply({ content: "This ticket has already been claimed. Check the channel topic.", ephemeral: true });
-        await interaction.channel.setTopic(`${topic} | Claimed by: ${interaction.user.tag} (${interaction.user.id})`.slice(0, 1024), "Ticket claimed by support staff");
-        await interaction.reply({ content: `🙋 Ticket claimed by <@${interaction.user.id}>.`, allowedMentions: { parse: [], users: [interaction.user.id] } });
+        if (topic.includes("Claimed by:")) {
+          return interaction.reply({
+            content: "This ticket has already been claimed. Check the channel topic.",
+            ephemeral: true
+          });
+        }
+
+        await interaction.channel.setTopic(
+          `${topic} | Claimed by: ${interaction.user.tag} (${interaction.user.id})`.slice(0, 1024),
+          "Ticket claimed by support staff"
+        );
+
+        const updatedRows = interaction.message.components.map((row) => {
+          const updatedRow = ActionRowBuilder.from(row);
+          updatedRow.components = updatedRow.components.map((component) => {
+            if (component.customId === "bc_ticket_claim") {
+              return ButtonBuilder.from(component)
+                .setLabel("Claimed")
+                .setDisabled(true);
+            }
+            return ButtonBuilder.from(component);
+          });
+          return updatedRow;
+        });
+
+        await interaction.update({
+          content: `🙋 Ticket claimed by <@${interaction.user.id}>.`,
+          components: updatedRows,
+          allowedMentions: { parse: [], users: [interaction.user.id] }
+        });
         return;
       }
       if (interaction.customId === "bc_ticket_close") {
