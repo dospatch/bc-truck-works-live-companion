@@ -414,7 +414,7 @@ async function handleCommand(interaction) {
               name: `transcript-${interaction.channel.name}-${interaction.channel.id}.txt`
             });
             await logChannel.send({
-              content: \`📄 **Ticket Transcript Saved**\n**Ticket:** <#\${interaction.channel.id}> (\${interaction.channel.name})\n**Closed by:** <@\${interaction.user.id}>\n**Messages included:** \${total}\`,
+              content: `📄 **Ticket Transcript Saved**\n**Ticket:** <#${interaction.channel.id}> (${interaction.channel.name})\n**Closed by:** <@${interaction.user.id}>\n**Messages included:** ${total}`,
               files: [transcript],
               allowedMentions: { parse: [], users: [interaction.user.id] }
             });
