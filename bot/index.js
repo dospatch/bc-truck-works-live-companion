@@ -348,7 +348,7 @@ async function handleCommand(interaction) {
           components: updatedRows
         });
         await interaction.channel.send({
-          content: `🙋 Ticket claimed by <@${interaction.user.id}>.`,
+          content: `🙋 Thanks for your patience — <@${interaction.user.id}> is picking this up now.`,
           allowedMentions: { parse: [], users: [interaction.user.id] }
         });
         return;
@@ -373,7 +373,7 @@ async function handleCommand(interaction) {
           allowedMentions: { parse: [], users: [interaction.user.id] }
         });
 
-        if (ticketLogChannelId && /^\\d{17,20}$/.test(ticketLogChannelId)) {
+        if (ticketLogChannelId && /^\d{17,20}$/.test(ticketLogChannelId)) {
           try {
             const logChannel = await interaction.guild.channels.fetch(ticketLogChannelId);
             if (!logChannel || !logChannel.isTextBased() || typeof logChannel.send !== "function") {
@@ -414,7 +414,7 @@ async function handleCommand(interaction) {
               name: `transcript-${interaction.channel.name}-${interaction.channel.id}.txt`
             });
             await logChannel.send({
-              content: `📄 **Ticket Transcript Saved**\n**Ticket:** <#${interaction.channel.id}> (${interaction.channel.name})\n**Closed by:** <@${interaction.user.id}>\n**Messages included:** ${total}`,
+              content: \`📄 **Ticket Transcript Saved**\n**Ticket:** <#\${interaction.channel.id}> (\${interaction.channel.name})\n**Closed by:** <@\${interaction.user.id}>\n**Messages included:** \${total}\`,
               files: [transcript],
               allowedMentions: { parse: [], users: [interaction.user.id] }
             });
